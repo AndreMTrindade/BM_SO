@@ -1,24 +1,38 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/* 
- * File:   MainServer.c
- * Author: hp
- *
- * Created on 31 de Julho de 2018, 20:30
- */
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <time.h>
 
-/*
- * 
- */
+#include "ClientManagement.h"
+
+static int id = 0;
+
+typedef struct Word {
+    char command[50];
+    struct Word *p;
+} Word;
+
+
+
+Client* Shell(Client *clientes);
+Word* DevolvePalavras(char* frase);
+void LimpaStdin(void);
+int ProcessaComando(Word *p);
+int Size(Word *p);
+char* UpString(char *s);
+
+void Shutdown(Client *c);
+
 int main(int argc, char** argv) {
 
     return (EXIT_SUCCESS);
 }
+
+
 

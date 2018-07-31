@@ -4,15 +4,17 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>ClientManagement.h</itemPath>
+      <itemPath>../EstruturasComunicacao.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
                    projectFiles="true">
-      <itemPath>../EstruturasComunicacao.h</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>ClientManagement.c</itemPath>
       <itemPath>MainServer.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -39,6 +41,10 @@
       </compileType>
       <item path="../EstruturasComunicacao.h" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="ClientManagement.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ClientManagement.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="MainServer.c" ex="false" tool="0" flavor2="0">
       </item>
     </conf>
@@ -63,6 +69,10 @@
         </asmTool>
       </compileType>
       <item path="../EstruturasComunicacao.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="ClientManagement.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ClientManagement.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="MainServer.c" ex="false" tool="0" flavor2="0">
       </item>
