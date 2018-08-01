@@ -1,22 +1,17 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/* 
- * File:   MainClient.c
- * Author: hp
- *
- * Created on 31 de Julho de 2018, 20:31
- */
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <string.h>
+#include <ncurses.h>
 
-/*
- * 
- */
+#include "../EstruturasComunicacao.h"
+
 int main(int argc, char** argv) {
 
     return (EXIT_SUCCESS);

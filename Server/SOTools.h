@@ -14,7 +14,7 @@
 #ifndef SOTOOLS_H
 #define SOTOOLS_H
 
-//#include "../EstruturasComunicacao.h"
+#include "ClientManagement.h"
 
 #ifdef __cplusplus
 extern "C" {

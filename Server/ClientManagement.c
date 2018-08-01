@@ -100,7 +100,7 @@ void KickPlayer(Word *p, Client *lClients) {
     }
 }
 
-int CheckClient(Client *cr, Client *lClients) {
+int CheckClient(Client cr, Client *lClients) {
     Client *it, *temp;
     it = lClients;
     if (cr.status == 3) {

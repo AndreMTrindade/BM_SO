@@ -14,17 +14,11 @@
 
 static int id = 0;
 
-typedef struct Word {
-    char command[50];
-    struct Word *p;
-} Word;
-
 typedef struct {
     Client *lClients;
     Object *lObjects;
     int* exit;
 } ThreadReferences;
-
 
 
 Client* Console(Client *clientes);
@@ -33,7 +27,7 @@ Object* ReadMaze();
 void *ClientLoginRequest(void *dados);
 
 int main(int argc, char** argv) {
-   Client *lClients = ReadClients();
+    Client *lClients = ReadClients();
     if (access(FIFO_LOGIN, F_OK) == 0) {
         printf("Já está a ser executado um Servidor!..\n");
         return 1;
@@ -41,29 +35,28 @@ int main(int argc, char** argv) {
 
     lClients = Console(lClients);
     SaveClients(lClients);
-    
+
     return (EXIT_SUCCESS);
 }
-
 
 Client* Console(Client *clientes) {
     char comando[50];
     Word *it;
     Word *p;
-    
+
     int op;
     int Exit = 0;
     pthread_t recebe;
     Object *lObjects = NULL;
-    
+
     ThreadReferences *x = (ThreadReferences*) malloc(sizeof (ThreadReferences));
-    
+
     lObjects = ReadMaze();
-    
+
     x->lClients = clientes;
     x->exit = &Exit;
     x->lObjects = lObjects;
-    
+
     pthread_create(&recebe, NULL, &ClientLoginRequest, (void *) x);
 
     while (1) {
@@ -92,7 +85,7 @@ Client* Console(Client *clientes) {
             case 3:
                 break;
             case 4:
-              //  Shutdown(clientes);
+                //  Shutdown(clientes);
                 break;
             case 5:
                 break;
@@ -115,9 +108,13 @@ Client* Console(Client *clientes) {
 }
 
 Object* ReadMaze() {
-    FILE *fd = fopen("Maze.txt", "rt");
+    FILE *fd = fopen("../Maze.txt", "rt");
     char c;
-    
+
+    if (fd == NULL) {
+        return NULL;
+    }
+
     Object *lObjects = NULL;
     Object *last = NULL;
     int x = 0, y = 0;
@@ -149,7 +146,7 @@ Object* ReadMaze() {
                 }
             } else {
                 if (c == '0') {
-                 
+
                     if (lObjects == NULL) {
                         lObjects = (Object*) malloc(sizeof (Object));
                         lObjects->status = 1;
@@ -192,7 +189,7 @@ Object* ReadMaze() {
                         }
                     } else {
                         if (c == 'O') {
-             
+
                             if (lObjects == NULL) {
                                 lObjects = (Object*) malloc(sizeof (Object));
                                 lObjects->status = 1;
@@ -214,7 +211,7 @@ Object* ReadMaze() {
                             }
                         } else {
                             if (c == 'S') {
-         
+
                                 if (lObjects == NULL) {
                                     lObjects = (Object*) malloc(sizeof (Object));
                                     lObjects->status = 1;
@@ -297,13 +294,13 @@ void *ClientLoginRequest(void *dados) {
     int fd, fd_resp, i;
     int res;
     int *Exit;
-    
+
     Client newRequest;
-    
+
     Object *lObjects;
     ThreadReferences *x = (ThreadReferences*) dados;
     pthread_t envia;
-    
+
     const char* s = getenv("NMAXPLAY");
     int nPlayers = 0;
 
@@ -314,12 +311,12 @@ void *ClientLoginRequest(void *dados) {
         nPlayers = atoi(s);
     }
 
-//    printf("Players: %d\n", nPlayers);
-//    fflush(stdout);
+    //    printf("Players: %d\n", nPlayers);
+    //    fflush(stdout);
 
     Client *lClients = x->lClients;
     lObjects = x->lObjects;
-    
+
     Exit = x->exit;
 
     mkfifo(FIFO_LOGIN, 0600);
@@ -337,7 +334,7 @@ void *ClientLoginRequest(void *dados) {
                 printf("Erro %d\n", newRequest.PID);
                 fflush(stdout);
             } else {
-                res = CheckClient(lClients, newRequest);
+                res = CheckClient(newRequest, lClients);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
                 if (Count(lClients) == 1) {//ALTERAR
@@ -346,7 +343,7 @@ void *ClientLoginRequest(void *dados) {
                     close(fd);
                     unlink(FIFO_LOGIN);
                     sleep(1);
-                //    pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
+                    //    pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
                     pthread_exit(0);
                 }
             }
@@ -355,7 +352,7 @@ void *ClientLoginRequest(void *dados) {
     }
 
     close(fd);
-    unlink(FIFOLOGIN);
+    unlink(FIFO_LOGIN);
     pthread_exit(0);
 
 }
