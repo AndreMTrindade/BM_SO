@@ -36,7 +36,8 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 # Object Files
 OBJECTFILES= \
 	${OBJECTDIR}/ClientManagement.o \
-	${OBJECTDIR}/MainServer.o
+	${OBJECTDIR}/MainServer.o \
+	${OBJECTDIR}/SOTools.o
 
 
 # C Compiler Flags
@@ -72,6 +73,11 @@ ${OBJECTDIR}/MainServer.o: MainServer.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -O2 -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/MainServer.o MainServer.c
+
+${OBJECTDIR}/SOTools.o: SOTools.c
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -O2 -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/SOTools.o SOTools.c
 
 # Subprojects
 .build-subprojects:
