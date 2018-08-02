@@ -36,6 +36,9 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <compileType>
+        <linkerTool>
+          <commandLine>-lpthread -lncurses</commandLine>
+        </linkerTool>
       </compileType>
       <item path="../EstruturasComunicacao.h" ex="false" tool="3" flavor2="0">
       </item>

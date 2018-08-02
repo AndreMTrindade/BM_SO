@@ -28,7 +28,61 @@ void CleanStdin(void);
 
 int main(int argc, char** argv) {
 
-    
+    Client c;
+    char str[50];
+    int fd, fde;
+    int Sair = 0;
+    char tecla;
+    Object *ob;
+    Play j;
+    ThreadReferences *passadadosThread = (ThreadReferences*) malloc(sizeof (ThreadReferences));
+    pthread_t envia;
+
+    WINDOW * mainwin;
+
+    do {
+        clear;
+        InitialData(&c);
+    } while (SendLoginData(&c) == -1);
+
+    ob = ReciveInitialObjects();
+
+    passadadosThread->Exit = &Sair;
+    passadadosThread->lObjects = ob;
+    passadadosThread->mainwin = mainwin;
+
+    if ((mainwin = initscr()) == NULL) {
+        fprintf(stderr, "Error initialising ncurses.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    noecho();
+    keypad(mainwin, TRUE);
+    curs_set(0);
+    start_color();
+    Show(ob);
+
+    pthread_create(&envia, NULL, &ReciveCurrentData, (void *) passadadosThread);
+
+    do {
+        scanf("%c", &tecla);
+        fde = open("../MMM", O_WRONLY);
+        if (fde == -1) {
+            printf("Erro ao Abrir FIFO \n");
+            fflush(stdout);
+        } else {
+            j.PID = getpid();
+            j.ascii = (int) tecla;
+            write(fde, &j, sizeof (j));
+            close(fde);
+        }
+
+    } while (Sair == 0);
+
+    delwin(mainwin);
+    endwin();
+    refresh();
+    return (EXIT_SUCCESS);
     return (EXIT_SUCCESS);
 }
 
@@ -218,9 +272,9 @@ void* ReciveCurrentData(void *dados) {
             while (it != NULL) {
                 if (it->id == b.id) {
                     existe = 1;
-                    if (b.ativo == 0) {
+                    if (b.status == 0) {
                         if (ant == NULL) {
-                            x->ob = x->ob->p;
+                            x->lObjects = x->lObjects->p;
                         } else {
                             ant->p = it->p;
                             free(it);
@@ -236,20 +290,20 @@ void* ReciveCurrentData(void *dados) {
                 it = it->p;
             }
             if (existe == 0) {
-                it = x->ob;
+                it = x->lObjects;
                 while (it->p != NULL) {
                     it = it->p;
                 }
-                temp = (Objecto*) malloc(sizeof (Objecto));
+                temp = (Object*) malloc(sizeof (Object));
                 it->p = temp;
                 temp->id = b.id;
-                temp->ativo = b.ativo;
-                temp->tipo = b.tipo;
+                temp->status = b.status;
+                temp->type = b.type;
                 temp->x = b.x;
                 temp->y = b.y;
                 temp->p = NULL;
             }
-            Imprime(x->ob);
+            Show(x->lObjects);
         }
     }
     pthread_exit(0);
