@@ -25,7 +25,6 @@ void* ReciveCurrentData(void *dados);
 void Show(Object *ob);
 void CleanStdin(void);
 
-
 int main(int argc, char** argv) {
 
     Client c;
@@ -66,7 +65,7 @@ int main(int argc, char** argv) {
 
     do {
         scanf("%c", &tecla);
-        fde = open("../MMM", O_WRONLY);
+        fde = open(FIFO_JOGO, O_WRONLY);
         if (fde == -1) {
             printf("Erro ao Abrir FIFO \n");
             fflush(stdout);
@@ -333,66 +332,13 @@ void Show(Object *ob) {
     init_pair(16, COLOR_RED, COLOR_RED);
 
     while (it != NULL) {
-        if (it->type == 1) {
+        if (it->type == 0) {
             attron(COLOR_PAIR(1));
             mvprintw(it->y, it->x, "0");
         } else {
-            if (it->type > 1000) {
-                contador++;
-                switch (contador) {
-                    case 1: attron(COLOR_PAIR(9));
-                        break;
-                    case 2: attron(COLOR_PAIR(10));
-                        break;
-                    case 3: attron(COLOR_PAIR(11));
-                        break;
-                    case 4: attron(COLOR_PAIR(12));
-                        break;
-                    case 5: attron(COLOR_PAIR(13));
-                        break;
-                    case 6: attron(COLOR_PAIR(14));
-                        break;
-
-                }
+            if (it->type == 1) {
+                attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "P");
-            } else if (it->type == 2) {
-                attron(COLOR_PAIR(2));
-                mvprintw(it->y, it->x, "O");
-            } else if (it->type == 3) {
-                attron(COLOR_PAIR(3));
-                mvprintw(it->y, it->x, "x");
-            } else if (it->type == 4) {
-                attron(COLOR_PAIR(3));
-                mvprintw(it->y, it->x, "X");
-            } else if (it->type == 5) {
-                attron(COLOR_PAIR(5));
-                mvprintw(it->y, it->x, "i");
-            } else if (it->type == 6) {
-                attron(COLOR_PAIR(6));
-                mvprintw(it->y, it->x, "U");
-            } else if (it->type == 7) {
-                attron(COLOR_PAIR(7));
-                mvprintw(it->y, it->x, "I");
-            } else if (it->type == 8) {
-                attron(COLOR_PAIR(8));
-                mvprintw(it->y, it->x, "x");
-            } else if (it->type == 9) {
-                attron(COLOR_PAIR(8));
-                mvprintw(it->y, it->x, "X");
-            } else if (it->type == 10) {
-                attron(COLOR_PAIR(8));
-                mvprintw(it->y, it->x, "C");
-            } else if (it->type == 11) {
-                attron(COLOR_PAIR(8));
-                mvprintw(it->y, it->x, "E");
-            } else if (it->type == 12) {
-                if (it->y == getpid()) {
-                    attron(COLOR_PAIR(15));
-                    mvprintw(2, 40, "Ponto: %d", it->x);
-                }
-            } else if (it->type == 13) {
-                attron(COLOR_PAIR(16));
-                mvprintw(it->y, it->x, "S");
             }
         }
         it = it->p;

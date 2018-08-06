@@ -22,6 +22,7 @@ typedef struct {
 
 
 pthread_mutex_t lockFifoJogo;
+pthread_mutex_t modifyList;
 
 Client* Console(Client *clientes);
 int IdentifyCommand(Word *p);
@@ -31,6 +32,10 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients);
 void PutPlayer(Object *new, Object *lObjects);
 void *Game(void *dados);
 void SendAll(Object new, Client *lClients);
+void ActionPlayer(Object *lObjects, Play play, Client *lClients);
+int CheckMovement(Object *lObjects, Object *object, Play play);
+void PutEnemys(Object *new, Object *lObjects);
+
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -123,7 +128,7 @@ Object* ReadMaze() {
 
     Object *lObjects = NULL;
     Object *last = NULL;
-    int x = 0, y = 0;
+    int x = 1, y = 0;
 
     while ((c = getc(fd)) != EOF) {
         if (c == '\n') {
@@ -149,97 +154,6 @@ Object* ReadMaze() {
                     last->p->type = 0;
                     last->p->p = NULL;
                     last = last->p;
-                }
-            } else {
-                if (c == '0') {
-
-                    if (lObjects == NULL) {
-                        lObjects = (Object*) malloc(sizeof (Object));
-                        lObjects->status = 1;
-                        lObjects->id = ++id;
-                        lObjects->type = 2;
-                        lObjects->x = x;
-                        lObjects->y = y;
-                        lObjects->p = NULL;
-                        last = lObjects;
-                    } else {
-                        last->p = (Object*) malloc(sizeof (Object));
-                        last->p->status = 1;
-                        last->p->id = ++id;
-                        last->p->x = x;
-                        last->p->y = y;
-                        last->p->type = 2;
-                        last->p->p = NULL;
-                        last = last->p;
-                    }
-                } else {
-                    if (c == 'o') {
-                        if (lObjects == NULL) {
-                            lObjects = (Object*) malloc(sizeof (Object));
-                            lObjects->status = 1;
-                            lObjects->id = ++id;
-                            lObjects->type = 8;
-                            lObjects->x = x;
-                            lObjects->y = y;
-                            lObjects->p = NULL;
-                            last = lObjects;
-                        } else {
-                            last->p = (Object*) malloc(sizeof (Object));
-                            last->p->status = 1;
-                            last->p->id = ++id;
-                            last->p->x = x;
-                            last->p->y = y;
-                            last->p->type = 8;
-                            last->p->p = NULL;
-                            last = last->p;
-                        }
-                    } else {
-                        if (c == 'O') {
-
-                            if (lObjects == NULL) {
-                                lObjects = (Object*) malloc(sizeof (Object));
-                                lObjects->status = 1;
-                                lObjects->id = ++id;
-                                lObjects->type = 9;
-                                lObjects->x = x;
-                                lObjects->y = y;
-                                lObjects->p = NULL;
-                                last = lObjects;
-                            } else {
-                                last->p = (Object*) malloc(sizeof (Object));
-                                last->p->status = 1;
-                                last->p->id = ++id;
-                                last->p->x = x;
-                                last->p->y = y;
-                                last->p->type = 9;
-                                last->p->p = NULL;
-                                last = last->p;
-                            }
-                        } else {
-                            if (c == 'S') {
-
-                                if (lObjects == NULL) {
-                                    lObjects = (Object*) malloc(sizeof (Object));
-                                    lObjects->status = 1;
-                                    lObjects->id = ++id;
-                                    lObjects->type = 13;
-                                    lObjects->x = x;
-                                    lObjects->y = y;
-                                    lObjects->p = NULL;
-                                    last = lObjects;
-                                } else {
-                                    last->p = (Object*) malloc(sizeof (Object));
-                                    last->p->status = 1;
-                                    last->p->id = ++id;
-                                    last->p->x = x;
-                                    last->p->y = y;
-                                    last->p->type = 13;
-                                    last->p->p = NULL;
-                                    last = last->p;
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -349,8 +263,7 @@ void *ClientLoginRequest(void *dados) {
                     close(fd);
                     unlink(FIFO_LOGIN);
                     sleep(1);
-                    Game(x);
-                    //    pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
+                    pthread_create(&envia, NULL, &Game, (void *) x);
                     pthread_exit(0);
                 }
             }
@@ -409,6 +322,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
             new->status = 1;
             new->type = 1;
             new->playerInfo = info;
+            new->client = it;
 
             info->score = 0;
             info->nMegaBombs = 2;
@@ -422,24 +336,18 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         it = it->p;
     }
 
-    //    while (itb->p != NULL) {
-    //        itb = itb->p;
-    //    }
-    //    ult = itb;
-    //
-    //    for (i = 0; i < nMaxEnemy; i++) {
-    //        novo = (Objecto*) malloc(sizeof (Objecto));
-    //        id++;
-    //        novo->id = id;
-    //        novo->ativo = 1;
-    //        novo->tipo = 7;
-    //        ColocaInimigo(novo, bjectos);
-    //        ult->p = novo;
-    //        novo->p = NULL;
-    //        ult = novo;
-    //        maxElementos++;
-    //    }
-    //
+    for (i = 0; i < 5; i++) {
+        new = (Object*) malloc(sizeof (Object));
+        id++;
+        new->id = id;
+        new->status = 1;
+        new->type = 2;
+        PutEnemys(new, lObjects);
+        ult->p = new;
+        new->p = NULL;
+        ult = new;
+    }
+
     //    nMaxPantano = 5 + (rand() % 10);
     //
     //    for (i = 0; i < nMaxPantano; i++) {
@@ -479,12 +387,38 @@ void PutPlayer(Object *new, Object *lObjects) {
     } while (sair == 0);
 }
 
+void PutEnemys(Object *new, Object *lObjects) {
+    Object *it;
+    int x = 15, y = 2, sair = 0;
+
+    srand(time(NULL));
+
+    do {
+        it = lObjects;
+        while (it != NULL) {
+            if (it->x == x && it->y == y) {
+                sair = 0;
+                break;
+            }
+            new->x = x;
+            new->y = y;
+            it = it->p;
+            sair = 1;
+        }
+        y = rand() % 20;
+    } while (sair == 0);
+}
+
 void *Game(void *dados) {
     ThreadReferences *x = (ThreadReferences*) dados;
     Play j;
     Object new;
+    Object *it;
+    Object final;
     int i, fd;
     pthread_t recebe;
+
+    final.id = -1;
 
     mkfifo(FIFO_JOGO, 0660);
     fd = open(FIFO_JOGO, O_RDWR);
@@ -496,160 +430,52 @@ void *Game(void *dados) {
     }
 
     if (pthread_mutex_init(&lockFifoJogo, NULL) != 0) {
-        printf("\n mutex init has failed\n");
-        return 1;
+        printf("\n mutex lockFifoJogo has failed\n");
+        return;
     }
+
+    if (pthread_mutex_init(&modifyList, NULL) != 0) {
+        printf("\n mutex modifyList has failed\n");
+        return;
+    }
+
+    CreateInitialObjects(x->lObjects, x->lClients);
+
+    it = x->lObjects;
+    while (it != NULL) {
+        SendAll(*it, x->lClients);
+        it = it->p;
+    }
+    SendAll(final, x->lClients);
 
     while (*(x->exit) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
             ActionPlayer(x->lObjects, j, x->lClients);
         }
-
     }
     pthread_exit(0);
 }
 
 void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
 
-    Object novo;
     Object *it;
-    char key;
     int fd, erro = 0, erro2 = 0;
     char str[50];
 
+    pthread_mutex_lock(&modifyList);
     it = lObjects;
 
     while (it != NULL) {
-
-        if (it->type == play.PID) {
-            key = play.ascii;
-            if (toupper(key) == 'W' || key == 30) {
-                novo = VerificaMovimento(1, b, it, c);
-                if (novo.y != (it->y - 1)) {
-                    EnviaNovopTodos(novo, c);
-                    pthread_mutex_unlock(&bloqueiaBomba);
-                }
-
-            } else {
-                if (toupper(key) == 'S' || key == 31) {
-                    novo = VerificaMovimento(2, b, it, c);
-
-                    if (novo.y != (it->y + 1)) {
-                        pthread_mutex_lock(&bloqueiaBomba);
-                        EnviaNovopTodos(novo, c);
-                        pthread_mutex_unlock(&bloqueiaBomba);
-                    }
-
-                } else {
-                    if (toupper(key) == 'D' || key == 16) {
-                        novo = VerificaMovimento(3, b, it, c);
-
-                        if (novo.x != (it->x + 1)) {
-                            pthread_mutex_lock(&bloqueiaBomba);
-                            EnviaNovopTodos(novo, c);
-                            pthread_mutex_unlock(&bloqueiaBomba);
-                        }
-
-                    } else {
-                        if (toupper(key) == 'A' || key == 17) {
-                            novo = VerificaMovimento(4, b, it, c);
-                            if (novo.x != (it->x - 1)) {
-                                pthread_mutex_lock(&bloqueiaBomba);
-                                EnviaNovopTodos(novo, c);
-                                pthread_mutex_unlock(&bloqueiaBomba);
-                            }
-                        } else {
-                            if (key == 32) {
-                                itc = c;
-                                while (itc != NULL) {
-                                    if (itc->PID == (j.PID - 10000)) {
-                                        if (itc->nBomba > 0) {
-                                            itc->nBomba--;
-                                            break;
-                                        } else {
-                                            return;
-                                        }
-
-                                    }
-                                    itc = itc->p;
-                                }
-                                erro2 = 0;
-                                it2 = b;
-                                while (it2->p != NULL) {
-                                    erro++;
-                                    if (erro == 500) {
-                                        it = b;
-                                        for (int i = 0; i < maxElementos; i++) {
-                                            it = it->p;
-                                        }
-                                        it->p = NULL;
-                                    }
-                                    it2 = it2->p;
-                                }
-                                novaBomba = (Objecto*) malloc(sizeof (Objecto));
-                                it2->p = novaBomba;
-
-                                id++;
-                                novaBomba->id = id;
-                                novaBomba->tipo = 3;
-                                novaBomba->explosao = NULL;
-                                novaBomba->x = it->x;
-                                novaBomba->y = it->y;
-                                x->bomba = novaBomba;
-
-                                pthread_create(&envia, NULL, &TrataBomba, (void *) x);
-                            } else {
-                                if (toupper(key) == 'B') {
-                                    itc = c;
-                                    while (itc != NULL) {
-                                        if (itc->PID == j.PID - 10000) {
-                                            if (itc->nMegaBomba > 0) {
-                                                itc->nMegaBomba--;
-                                            } else {
-                                                return;
-                                            }
-
-                                        }
-                                        itc = itc->p;
-                                    }
-
-                                    it2 = b;
-                                    erro = 0;
-
-                                    while (it2->p != NULL) {
-                                        erro++;
-                                        if (erro == 500) {
-                                            it = b;
-                                            for (int i = 0; i < maxElementos; i++) {
-                                                it = it->p;
-                                            }
-                                            it->p = NULL;
-                                        }
-                                        it2 = it2->p;
-                                    }
-
-                                    novaBomba = (Objecto*) malloc(sizeof (Objecto));
-                                    it2->p = novaBomba;
-
-                                    id++;
-                                    novaBomba->id = id;
-                                    novaBomba->tipo = 4;
-                                    novaBomba->explosao = NULL;
-                                    novaBomba->x = it->x;
-                                    novaBomba->y = it->y;
-                                    x->bomba = novaBomba;
-                                    pthread_create(&envia, NULL, &TrataMegaBomba, (void *) x);
-                                }
-                            }
-                        }
-                    }
-                }
+        if (it->type == 1 && it->client->PID == play.PID) {
+            if (CheckMovement(lObjects, it, play) == 1) {
+                SendAll(*it, lClients);
+                break;
             }
-            break;
         }
         it = it->p;
     }
+    pthread_mutex_unlock(&modifyList);
 }
 
 void SendAll(Object new, Client *lClients) {
@@ -671,7 +497,7 @@ void SendAll(Object new, Client *lClients) {
                 fflush(stdout);
                 pthread_mutex_lock(&lockFifoJogo);
                 write(fd, &new, sizeof (new));
-                pthread_mutex_unlock(&lockFifoJogo)
+                pthread_mutex_unlock(&lockFifoJogo);
                 close(fd);
             }
         }
@@ -680,3 +506,38 @@ void SendAll(Object new, Client *lClients) {
     }
 }
 
+int CheckMovement(Object *lObjects, Object *object, Play play) {
+    Object *it;
+    Object new;
+
+    new.x = object->x;
+    new.y = object->y;
+
+    if (toupper(play.ascii) == 'W' || play.ascii == 30) {
+        new.y--;
+    } else {
+        if (toupper(play.ascii) == 'S' || play.ascii == 31) {
+            new.y++;
+        } else {
+            if (toupper(play.ascii) == 'D' || play.ascii == 16) {
+                new.x++;
+            } else {
+                if (toupper(play.ascii) == 'A' || play.ascii == 17) {
+                    new.x--;
+                }
+            }
+        }
+    }
+
+    it = lObjects;
+
+    while (it != NULL) {
+        if (it->x == new.x && it->y == new.y) {
+            return 0;
+        }
+        it = it->p;
+    }
+    object->x = new.x;
+    object->y = new.y;
+    return 1;
+}
