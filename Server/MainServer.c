@@ -43,6 +43,7 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients);
 int CheckMovement(Object *lObjects, Object *object, Play play);
 void PutEnemys(Object *new, Object *lObjects);
 void *MoveEnemy(void *dados);
+void *CheckGameOver(void *dados);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -161,6 +162,28 @@ Object* ReadMaze() {
                     last->p->type = 0;
                     last->p->p = NULL;
                     last = last->p;
+                }
+            } else {
+                if (c == '0') {
+                    if (lObjects == NULL) {
+                        lObjects = (Object*) malloc(sizeof (Object));
+                        lObjects->status = 1;
+                        lObjects->id = ++id;
+                        lObjects->type = 3;
+                        lObjects->x = x;
+                        lObjects->y = y;
+                        lObjects->p = NULL;
+                        last = lObjects;
+                    } else {
+                        last->p = (Object*) malloc(sizeof (Object));
+                        last->p->status = 1;
+                        last->p->id = ++id;
+                        last->p->x = x;
+                        last->p->y = y;
+                        last->p->type = 3;
+                        last->p->p = NULL;
+                        last = last->p;
+                    }
                 }
             }
         }
@@ -426,9 +449,9 @@ void *Game(void *dados) {
     Object *it;
     Object final;
     int i, fd;
-    pthread_t recebe[30];
-    int count=0;
-    
+    pthread_t recebe;
+    int count = 0;
+
     final.id = -1;
 
     d->exit = x->exit;
@@ -446,12 +469,12 @@ void *Game(void *dados) {
 
     if (pthread_mutex_init(&lockFifoJogo, NULL) != 0) {
         printf("\n mutex lockFifoJogo has failed\n");
-         pthread_exit(0);
+        pthread_exit(0);
     }
 
     if (pthread_mutex_init(&modifyList, NULL) != 0) {
         printf("\n mutex modifyList has failed\n");
-         pthread_exit(0);
+        pthread_exit(0);
     }
 
     CreateInitialObjects(x->lObjects, x->lClients);
@@ -459,14 +482,19 @@ void *Game(void *dados) {
     it = x->lObjects;
     while (it != NULL) {
         if (it->type == 2) {
+            d = (ThreadReferencesEnemy*) malloc(sizeof (ThreadReferencesEnemy));
+            d->lClients = x->lClients;
+            d->lObjects = x->lObjects;
+            d->exit = x->exit;
             d->enemy = it;
-            pthread_create(&recebe[++count], NULL, &MoveEnemy, (void *) d);
+            pthread_create(&recebe, NULL, &MoveEnemy, (void *) d);
         }
         SendAll(*it, x->lClients);
         it = it->p;
     }
     SendAll(final, x->lClients);
 
+    pthread_create(&recebe, NULL, &CheckGameOver, (void *) x);
     while (*(x->exit) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
@@ -487,9 +515,15 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
 
     while (it != NULL) {
         if (it->type == 1 && it->client->PID == play.PID) {
-            if (CheckMovement(lObjects, it, play) == 1) {
-                SendAll(*it, lClients);
-                break;
+            if (play.ascii != 32 && toupper(play.ascii) != 'B') {
+                if (CheckMovement(lObjects, it, play) == 1) {
+                    SendAll(*it, lClients);
+                    break;
+                }
+            } else {
+                if (play.ascii != 32) {
+
+                }
             }
         }
         it = it->p;
@@ -551,8 +585,14 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
     it = lObjects;
 
     while (it != NULL) {
-        if (it->x == new.x && it->y == new.y) {
-            return 0;
+        if (object->type == 2) {
+            if (it->x == new.x && it->y == new.y && it->type != 1) {
+                return 0;
+            }
+        } else {
+            if (it->x == new.x && it->y == new.y && it->type != 2) {
+                return 0;
+            }
         }
         it = it->p;
     }
@@ -564,7 +604,7 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
 void *MoveEnemy(void *dados) {
     ThreadReferencesEnemy *x = (ThreadReferencesEnemy*) dados;
     srand(time(NULL));
-    
+
     int direction = rand() % 4;
     Play play;
     int change = 1;
@@ -596,7 +636,51 @@ void *MoveEnemy(void *dados) {
             change = 0;
         }
         pthread_mutex_unlock(&modifyList);
-        SendAll(*(x->enemy),x->lClients);
+        SendAll(*(x->enemy), x->lClients);
         sleep(1);
     }
 }
+
+void *CheckGameOver(void *dados) {
+    ThreadReferences *x = (ThreadReferences*) dados;
+    Object *it = x->lObjects;
+    Object *it2 = x->lObjects;
+    Object final;
+    char str[50];
+    int fd;
+
+    final.type = -2;
+
+    while (*(x->exit) == 0) {
+
+        it = x->lObjects;
+
+        pthread_mutex_lock(&modifyList);
+        while (it != NULL) {
+            if (it->type == 1) {
+                it2 = x->lObjects;
+                while (it2 != NULL) {
+                    if (it->x == it2->x && it->y == it2->y) {
+                        if (it2->type == 2) {
+                            sprintf(str, "../JJJ%d", it->client->PID);
+                            fd = open(str, O_WRONLY);
+                            if (fd == -1) {
+                                printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+                                fflush(stdout);
+                            } else {
+                                pthread_mutex_lock(&lockFifoJogo);
+                                write(fd, &final, sizeof (final));
+                                pthread_mutex_unlock(&lockFifoJogo);
+                                close(fd);
+                            }
+                        }
+                    }
+                    it2 = it2->p;
+                }
+            }
+            it = it->p;
+        }
+        pthread_mutex_unlock(&modifyList);
+    }
+}
+

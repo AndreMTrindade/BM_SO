@@ -326,7 +326,7 @@ void Show(Object *ob) {
     init_pair(10, COLOR_YELLOW, COLOR_BLACK);
     init_pair(11, COLOR_RED, COLOR_BLACK);
     init_pair(12, COLOR_CYAN, COLOR_BLACK);
-    init_pair(13, COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(13, COLOR_MAGENTA, COLOR_MAGENTA);
     init_pair(14, COLOR_BLUE, COLOR_BLACK);
     init_pair(15, COLOR_WHITE, COLOR_BLACK);
     init_pair(16, COLOR_RED, COLOR_RED);
@@ -342,6 +342,9 @@ void Show(Object *ob) {
             } else if (it->type == 2) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "E");
+            } else if (it->type == 3) {
+                attron(COLOR_PAIR(6));
+                mvprintw(it->y, it->x, "M");
             }
         }
         it = it->p;
