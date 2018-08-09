@@ -20,6 +20,13 @@ typedef struct {
     int* exit;
 } ThreadReferences;
 
+typedef struct {
+    Client *lClients;
+    Object *lObjects;
+    Object *enemy;
+    int* exit;
+} ThreadReferencesEnemy;
+
 
 pthread_mutex_t lockFifoJogo;
 pthread_mutex_t modifyList;
@@ -35,7 +42,7 @@ void SendAll(Object new, Client *lClients);
 void ActionPlayer(Object *lObjects, Play play, Client *lClients);
 int CheckMovement(Object *lObjects, Object *object, Play play);
 void PutEnemys(Object *new, Object *lObjects);
-
+void *MoveEnemy(void *dados);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -406,19 +413,27 @@ void PutEnemys(Object *new, Object *lObjects) {
             sair = 1;
         }
         y = rand() % 20;
+        x = rand() % 20;
+        x += 10;
     } while (sair == 0);
 }
 
 void *Game(void *dados) {
     ThreadReferences *x = (ThreadReferences*) dados;
+    ThreadReferencesEnemy *d = (ThreadReferencesEnemy*) malloc(sizeof (ThreadReferencesEnemy));
     Play j;
     Object new;
     Object *it;
     Object final;
     int i, fd;
-    pthread_t recebe;
-
+    pthread_t recebe[30];
+    int count=0;
+    
     final.id = -1;
+
+    d->exit = x->exit;
+    d->lClients = x->lClients;
+    d->lObjects = x->lObjects;
 
     mkfifo(FIFO_JOGO, 0660);
     fd = open(FIFO_JOGO, O_RDWR);
@@ -431,18 +446,22 @@ void *Game(void *dados) {
 
     if (pthread_mutex_init(&lockFifoJogo, NULL) != 0) {
         printf("\n mutex lockFifoJogo has failed\n");
-        return;
+         pthread_exit(0);
     }
 
     if (pthread_mutex_init(&modifyList, NULL) != 0) {
         printf("\n mutex modifyList has failed\n");
-        return;
+         pthread_exit(0);
     }
 
     CreateInitialObjects(x->lObjects, x->lClients);
 
     it = x->lObjects;
     while (it != NULL) {
+        if (it->type == 2) {
+            d->enemy = it;
+            pthread_create(&recebe[++count], NULL, &MoveEnemy, (void *) d);
+        }
         SendAll(*it, x->lClients);
         it = it->p;
     }
@@ -540,4 +559,44 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
     object->x = new.x;
     object->y = new.y;
     return 1;
+}
+
+void *MoveEnemy(void *dados) {
+    ThreadReferencesEnemy *x = (ThreadReferencesEnemy*) dados;
+    srand(time(NULL));
+    
+    int direction = rand() % 4;
+    Play play;
+    int change = 1;
+
+    srand(time(NULL));
+
+    while (*(x->exit) == 0 && x->enemy->status == 1) {
+        if (change == 1) {
+            direction = rand() % 4;
+            switch (direction) {
+                case 0:
+                    play.ascii = 'W';
+                    break;
+                case 1:
+                    play.ascii = 'S';
+                    break;
+                case 2:
+                    play.ascii = 'A';
+                    break;
+                case 3:
+                    play.ascii = 'D';
+                    break;
+            }
+        }
+        pthread_mutex_lock(&modifyList);
+        if (CheckMovement(x->lObjects, x->enemy, play) == 0) {
+            change = 1;
+        } else {
+            change = 0;
+        }
+        pthread_mutex_unlock(&modifyList);
+        SendAll(*(x->enemy),x->lClients);
+        sleep(1);
+    }
 }

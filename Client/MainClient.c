@@ -19,7 +19,7 @@ typedef struct {
 } ThreadReferences;
 
 Client* InitialData(Client *c);
-int SendLoginData(Client *c);
+int SendLoginData(Client c);
 Object* ReciveInitialObjects();
 void* ReciveCurrentData(void *dados);
 void Show(Object *ob);
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     do {
         clear;
         InitialData(&c);
-    } while (SendLoginData(&c) == -1);
+    } while (SendLoginData(c) == -1);
 
     ob = ReciveInitialObjects();
 
@@ -116,15 +116,15 @@ Client* InitialData(Client *c) {
     return c;
 }
 
-int SendLoginData(Client *c) {
-    char str[10];
+int SendLoginData(Client c) {
+    char str[20];
     int fdres;
     int res;
     int fd = open(FIFO_LOGIN, O_WRONLY);
 
-    sprintf(str, "../JJJ%d", c->PID);
+    sprintf(str, "../JJJ%d", c.PID);
     mkfifo(str, 0600);
-    write(fd, c, sizeof (Client));
+    write(fd, &c, sizeof (Client));
     close(fd);
     printf("Esperando Resposta do Servidor...\n");
     fflush(stdout);
@@ -141,7 +141,7 @@ int SendLoginData(Client *c) {
 
 
     if (res == 0) {
-        printf("%s Jogador já está online!\n", c->name);
+        printf("%s Jogador já está online!\n", c.name);
         sleep(3);
         return -1;
     } else {
@@ -314,7 +314,7 @@ void Show(Object *ob) {
     it = ob;
     clear();
 
-    init_pair(1, COLOR_GREEN, COLOR_GREEN);
+    init_pair(1, COLOR_WHITE, COLOR_WHITE);
     init_pair(2, COLOR_WHITE, COLOR_WHITE);
     init_pair(3, COLOR_BLACK, COLOR_RED);
     init_pair(5, COLOR_YELLOW, COLOR_YELLOW);
@@ -339,6 +339,9 @@ void Show(Object *ob) {
             if (it->type == 1) {
                 attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "P");
+            } else if (it->type == 2) {
+                attron(COLOR_PAIR(7));
+                mvprintw(it->y, it->x, "E");
             }
         }
         it = it->p;
