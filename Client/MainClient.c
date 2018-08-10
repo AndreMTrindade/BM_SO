@@ -345,6 +345,12 @@ void Show(Object *ob) {
             } else if (it->type == 3) {
                 attron(COLOR_PAIR(6));
                 mvprintw(it->y, it->x, "M");
+            }else if (it->type == 4) {
+                attron(COLOR_PAIR(7));
+                mvprintw(it->y, it->x, "X");
+            } else if (it->type == 5) {
+                attron(COLOR_PAIR(5));
+                mvprintw(it->y, it->x, "M");
             }
         }
         it = it->p;

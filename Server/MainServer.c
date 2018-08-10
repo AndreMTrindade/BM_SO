@@ -27,6 +27,12 @@ typedef struct {
     int* exit;
 } ThreadReferencesEnemy;
 
+typedef struct {
+    Client *lClients;
+    Object *lObjects;
+    Object *player;
+    int* exit;
+} ThreadReferencesBombs;
 
 pthread_mutex_t lockFifoJogo;
 pthread_mutex_t modifyList;
@@ -44,6 +50,8 @@ int CheckMovement(Object *lObjects, Object *object, Play play);
 void PutEnemys(Object *new, Object *lObjects);
 void *MoveEnemy(void *dados);
 void *CheckGameOver(void *dados);
+void *Bomb(void *dados);
+void CreateFire(Object *lObjects, Object *bomb);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -509,7 +517,12 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
     Object *it;
     int fd, erro = 0, erro2 = 0;
     char str[50];
-
+    pthread_t recebe;
+    ThreadReferencesBombs *x = (ThreadReferencesBombs*) malloc(sizeof(ThreadReferencesBombs));
+    
+    x->lClients = lClients;
+    x->lObjects = lObjects;
+    
     pthread_mutex_lock(&modifyList);
     it = lObjects;
 
@@ -521,8 +534,9 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
                     break;
                 }
             } else {
-                if (play.ascii != 32) {
-
+                if (play.ascii == 32) {
+                    x->player = it;
+                    pthread_create(&recebe, NULL, &Bomb, (void *) x);
                 }
             }
         }
@@ -684,3 +698,126 @@ void *CheckGameOver(void *dados) {
     }
 }
 
+void *Bomb(void *dados) {
+    ThreadReferencesBombs *x = (ThreadReferencesBombs*) dados;
+    int periodo = 0;
+    Object *it;
+    Object *temp;
+    
+    //CREATE BOMB
+    Object *bomb = (Object*) malloc(sizeof (Object));
+
+    bomb->id = ++id;
+    bomb->type = 4;
+    bomb->status = 1;
+    bomb->playerInfo = NULL;
+    bomb->p = NULL;
+    bomb->explosion = NULL;
+    bomb->x = x->player->x;
+    bomb->y = x->player->y;
+
+    //SEND BOMB
+    SendAll(*bomb, x->lClients);
+
+    sleep(3);
+
+    bomb->status = 0;
+    SendAll(*bomb, x->lClients);
+
+    CreateFire(x->lObjects, bomb);
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            SendAll(*it, x->lClients);
+            it = it->p;
+        }
+    }
+
+    sleep(1.5);
+
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            it->status = 0;
+            SendAll(*it, x->lClients);
+            it = it->p;
+        }
+    }
+    
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            temp = it;
+            it = it->p;
+            if(it != NULL)
+                free(temp);
+        }
+    }
+    free(bomb);
+    free(x);
+    pthread_exit(0);
+}
+
+void CreateFire(Object *lObjects, Object *bomb) {
+    Object *it = bomb;
+    Object *itb = lObjects;
+    Object temp, *new;
+
+    int find = 0;
+    temp = *bomb;
+
+    id++;
+    new = (Object*) malloc(sizeof (Object));
+    new->status = 1;
+    new->id = id;
+    new->p = NULL;
+    new->type = 5;
+    new->x = temp.x;
+    new->y = temp.y;
+
+    it->explosion = new;
+    it = new;
+
+    for (int i = 0; i < 4; i++) {
+        temp = *bomb;
+        for (int j = 0; j < 2; j++) {
+            if (i == 0) {
+                temp.y++;
+            } else if (i == 1) {
+                temp.y--;
+            } else if (i == 2) {
+                temp.x++;
+            } else if (i == 3) {
+                temp.x--;
+            }
+
+            find = 1;
+            itb = lObjects;
+            pthread_mutex_lock(&modifyList);
+            while (itb != NULL) {
+                if (itb->x == temp.x && itb->y == temp.y && itb->type == 1) {
+                    find = 0;
+
+                    j = 2;
+                    break;
+                }
+                itb = itb->p;
+            }
+            pthread_mutex_unlock(&modifyList);
+            if (find == 1) {
+                id++;
+                new = (Object*) malloc(sizeof (Object));
+                new->type = 1;
+                new->id = id;
+                new->p = NULL;
+                new->type = 5;
+                new->x = temp.x;
+                new->y = temp.y;
+
+                it->p = new;
+                it = new;
+            }
+        }
+    }
+
+}
