@@ -34,24 +34,33 @@ typedef struct {
     int* exit;
 } ThreadReferencesBombs;
 
+typedef struct {
+    Client *lClients;
+    Object *lObjects;
+    Object *bomb;
+    int* exit;
+} ThreadReferencesBombsAction;
+
+
 pthread_mutex_t lockFifoJogo;
 pthread_mutex_t modifyList;
 
 Client* Console(Client *clientes);
 int IdentifyCommand(Word *p);
 Object* ReadMaze();
-void *ClientLoginRequest(void *dados);
+void *ClientLoginRequest(void *data);
 Object CreateInitialObjects(Object *lObjects, Client *lClients);
 void PutPlayer(Object *new, Object *lObjects);
-void *Game(void *dados);
+void *Game(void *data);
 void SendAll(Object new, Client *lClients);
 void ActionPlayer(Object *lObjects, Play play, Client *lClients);
 int CheckMovement(Object *lObjects, Object *object, Play play);
 void PutEnemys(Object *new, Object *lObjects);
-void *MoveEnemy(void *dados);
-void *CheckGameOver(void *dados);
-void *Bomb(void *dados);
+void *MoveEnemy(void *data);
+void *CheckGameOver(void *data);
+void *Bomb(void *data);
 void CreateFire(Object *lObjects, Object *bomb);
+void *CheckDamage(void *data);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -247,7 +256,7 @@ int IdentifyCommand(Word *p) {
     return -1;
 }
 
-void *ClientLoginRequest(void *dados) {
+void *ClientLoginRequest(void *data) {
     char str[80];
     int fd, fd_resp, i;
     int res;
@@ -256,7 +265,7 @@ void *ClientLoginRequest(void *dados) {
     Client newRequest;
 
     Object *lObjects;
-    ThreadReferences *x = (ThreadReferences*) dados;
+    ThreadReferences *x = (ThreadReferences*) data;
     pthread_t envia;
 
     const char* s = getenv("NMAXPLAY");
@@ -449,8 +458,8 @@ void PutEnemys(Object *new, Object *lObjects) {
     } while (sair == 0);
 }
 
-void *Game(void *dados) {
-    ThreadReferences *x = (ThreadReferences*) dados;
+void *Game(void *data) {
+    ThreadReferences *x = (ThreadReferences*) data;
     ThreadReferencesEnemy *d = (ThreadReferencesEnemy*) malloc(sizeof (ThreadReferencesEnemy));
     Play j;
     Object new;
@@ -518,11 +527,11 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
     int fd, erro = 0, erro2 = 0;
     char str[50];
     pthread_t recebe;
-    ThreadReferencesBombs *x = (ThreadReferencesBombs*) malloc(sizeof(ThreadReferencesBombs));
-    
+    ThreadReferencesBombs *x = (ThreadReferencesBombs*) malloc(sizeof (ThreadReferencesBombs));
+
     x->lClients = lClients;
     x->lObjects = lObjects;
-    
+
     pthread_mutex_lock(&modifyList);
     it = lObjects;
 
@@ -615,8 +624,8 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
     return 1;
 }
 
-void *MoveEnemy(void *dados) {
-    ThreadReferencesEnemy *x = (ThreadReferencesEnemy*) dados;
+void *MoveEnemy(void *data) {
+    ThreadReferencesEnemy *x = (ThreadReferencesEnemy*) data;
     srand(time(NULL));
 
     int direction = rand() % 4;
@@ -655,8 +664,8 @@ void *MoveEnemy(void *dados) {
     }
 }
 
-void *CheckGameOver(void *dados) {
-    ThreadReferences *x = (ThreadReferences*) dados;
+void *CheckGameOver(void *data) {
+    ThreadReferences *x = (ThreadReferences*) data;
     Object *it = x->lObjects;
     Object *it2 = x->lObjects;
     Object final;
@@ -698,12 +707,15 @@ void *CheckGameOver(void *dados) {
     }
 }
 
-void *Bomb(void *dados) {
-    ThreadReferencesBombs *x = (ThreadReferencesBombs*) dados;
-    int periodo = 0;
+void *Bomb(void *data) {
+    ThreadReferencesBombs *x = (ThreadReferencesBombs*) data;
+    ThreadReferencesBombsAction *d = (ThreadReferencesBombsAction*) malloc(sizeof (ThreadReferencesBombsAction));
+    pthread_t recebe;
+
+    int ex = 0;
     Object *it;
     Object *temp;
-    
+
     //CREATE BOMB
     Object *bomb = (Object*) malloc(sizeof (Object));
 
@@ -718,6 +730,12 @@ void *Bomb(void *dados) {
 
     //SEND BOMB
     SendAll(*bomb, x->lClients);
+    
+    *exit = 0;
+    d->bomb = bomb;
+    d->exit = &ex;
+    d->lClients = x->lClients;
+    d->lObjects = x->lObjects;
 
     sleep(3);
 
@@ -733,6 +751,8 @@ void *Bomb(void *dados) {
         }
     }
 
+    pthread_create(&recebe, NULL, &CheckDamage, (void *) d);
+
     sleep(1.5);
 
     it = bomb->explosion;
@@ -743,18 +763,19 @@ void *Bomb(void *dados) {
             it = it->p;
         }
     }
-    
+    ex = 1;
     it = bomb->explosion;
     if (bomb->explosion != NULL) {
         while (it != NULL) {
             temp = it;
             it = it->p;
-            if(it != NULL)
+            if (it != NULL)
                 free(temp);
         }
     }
     free(bomb);
     free(x);
+    free(exit);
     pthread_exit(0);
 }
 
@@ -820,4 +841,49 @@ void CreateFire(Object *lObjects, Object *bomb) {
         }
     }
 
+}
+
+void *CheckDamage(void *data) {
+    ThreadReferencesBombsAction *x = (ThreadReferencesBombsAction*) data;
+    Object *it, *itb;
+    Object final;
+    char str[50];
+    int fd;
+    final.type = -2;
+
+    while (*(x->exit) == 0) {
+        itb = x->bomb->explosion;
+        while (itb != NULL) {
+            pthread_mutex_lock(&modifyList);
+            it = x->lObjects;
+            while (it != NULL) {
+                if (itb->x = it->x && itb->y == it->y) {
+                    if (it->type == 2) {
+                        it->status = 0;
+                        sprintf(str, "../JJJ%d", it->client->PID);
+                        fd = open(str, O_WRONLY);
+
+                        if (fd == -1) {
+                            printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+                            fflush(stdout);
+                        } else {
+                            pthread_mutex_lock(&lockFifoJogo);
+                            write(fd, &final, sizeof (final));
+                            pthread_mutex_unlock(&lockFifoJogo);
+                            close(fd);
+                        }
+                    } else {
+                        if (it->type == 3) {
+                            it->status = 0;
+                            SendAll(*it, x->lClients);
+                        }
+                    }
+                }
+                it = it->p;
+            }
+            pthread_mutex_unlock(&modifyList);
+            itb = it->p;
+        }
+
+    }
 }
