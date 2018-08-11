@@ -52,7 +52,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients);
 void PutPlayer(Object *new, Object *lObjects);
 void *Game(void *data);
 void SendAll(Object new, Client *lClients);
-void ActionPlayer(Object *lObjects, Play play, Client *lClients);
+int ActionPlayer(Object *lObjects, Play play, Client *lClients);
 int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients);
 void PutEnemys(Object *new, Object *lObjects);
 void *MoveEnemy(void *data);
@@ -201,6 +201,28 @@ Object* ReadMaze() {
                         last->p->type = 3;
                         last->p->p = NULL;
                         last = last->p;
+                    }
+                } else {
+                    if (c == 'S') {
+                        if (lObjects == NULL) {
+                            lObjects = (Object*) malloc(sizeof (Object));
+                            lObjects->status = 1;
+                            lObjects->id = ++id;
+                            lObjects->type = 6;
+                            lObjects->x = x;
+                            lObjects->y = y;
+                            lObjects->p = NULL;
+                            last = lObjects;
+                        } else {
+                            last->p = (Object*) malloc(sizeof (Object));
+                            last->p->status = 1;
+                            last->p->id = ++id;
+                            last->p->x = x;
+                            last->p->y = y;
+                            last->p->type = 6;
+                            last->p->p = NULL;
+                            last = last->p;
+                        }
                     }
                 }
             }
@@ -389,7 +411,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         it = it->p;
     }
 
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 1; i++) {
         new = (Object*) malloc(sizeof (Object));
         id++;
         new->id = id;
@@ -521,17 +543,21 @@ void *Game(void *data) {
     while (*(x->exit) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
-            ActionPlayer(x->lObjects, j, x->lClients);
+            if (ActionPlayer(x->lObjects, j, x->lClients) == 1) {
+                *(x->exit) = 1;
+            }
         }
     }
     pthread_exit(0);
 }
 
-void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
+int ActionPlayer(Object *lObjects, Play play, Client *lClients) {
 
     Object *it;
     int fd, erro = 0, erro2 = 0;
     char str[50];
+    int awn;
+    Object win;
     pthread_t recebe;
     ThreadReferencesBombs *x = (ThreadReferencesBombs*) malloc(sizeof (ThreadReferencesBombs));
 
@@ -544,8 +570,15 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
     while (it != NULL) {
         if (it->type == 1 && it->client->PID == play.PID) {
             if (play.ascii != 32 && toupper(play.ascii) != 'B') {
-                if (CheckMovement(lObjects, it, play, x->lClients) == 1) {
+                awn = CheckMovement(lObjects, it, play, x->lClients);
+                if (awn > 0) {
                     SendAll(*it, lClients);
+                    if (awn == 2) {
+                        win.type = -3;
+                        SendAll(win, lClients);
+                        pthread_mutex_unlock(&modifyList);
+                        return 1;
+                    }
                     break;
                 }
             } else {
@@ -558,6 +591,7 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
         it = it->p;
     }
     pthread_mutex_unlock(&modifyList);
+    return 0;
 }
 
 void SendAll(Object new, Client *lClients) {
@@ -620,6 +654,8 @@ int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients)
                     CathItem(it, lObjects, object, lClients);
                     break;
                 }
+                if (it->type == 6) break;
+                if (it->type == 7) return 2;
                 return 0;
             }
         } else {
@@ -628,6 +664,8 @@ int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients)
                     CathItem(it, lObjects, object, lClients);
                     break;
                 }
+                if (it->type == 6) break;
+                if (it->type == 7) return 2;
                 return 0;
             }
         }
@@ -798,6 +836,7 @@ void CreateFire(Object *lObjects, Object *bomb) {
     Object temp, *new;
 
     int find = 0;
+    int destruc = 0;
     temp = *bomb;
 
     id++;
@@ -814,6 +853,7 @@ void CreateFire(Object *lObjects, Object *bomb) {
 
     for (int i = 0; i < 4; i++) {
         temp = *bomb;
+        destruc = 0;
         for (int j = 0; j < 2; j++) {
             if (i == 0) {
                 temp.y++;
@@ -829,11 +869,15 @@ void CreateFire(Object *lObjects, Object *bomb) {
             itb = lObjects;
             pthread_mutex_lock(&modifyList);
             while (itb != NULL) {
-                if (itb->x == temp.x && itb->y == temp.y && itb->type == 0) {
+                if (itb->x == temp.x && itb->y == temp.y && (itb->type == 0 || destruc == 1)) {
                     find = 0;
-
                     j = 2;
                     break;
+                } else {
+                    if (itb->x == temp.x && itb->y == temp.y && itb->type == 3) {
+                        destruc = 1;
+                        break;
+                    }
                 }
                 itb = itb->p;
             }
@@ -950,7 +994,7 @@ void DropItem(Object *lObjects, Object enemy, Client *lClients) {
 
 void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lClients) {
     Object *it;
-
+    Object *exit;
     int count = 0;
 
 
@@ -998,14 +1042,29 @@ void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lCli
             }
         }
     }
-    it = lObjects;
 
     SendAll(*player, lClients);
 
-    it = lObjects;
-
     dropObject->status = 0;
     SendAll(*dropObject, lClients);
+
+    count = 0;
+    it = lObjects;
+    while (it != NULL) {
+        if ((it->type == 2 || it->type >= 8 && it->type <= 11) && it->status == 1) {
+            count = 1;
+        }
+        if (it->type == 6) {
+            exit = it;
+        }
+        it = it->p;
+    }
+
+    if (count == 0) {
+        exit->type = 7;
+        SendAll(*exit, lClients);
+    }
+
 
 
 }

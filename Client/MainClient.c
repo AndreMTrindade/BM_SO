@@ -10,7 +10,7 @@
 #include <string.h>
 #include <ncurses.h>
 
-#include "../EstruturasComunicacao.h"
+#include "EstruturasComunicacao.h"
 
 typedef struct {
     Object *lObjects;
@@ -146,7 +146,7 @@ int SendLoginData(Client c) {
         return -1;
     } else {
         if (res >= 1) {
-            printf("Login efectuado com sucesso!\n\n E o Jogador %d\n",res);
+            printf("Login efectuado com sucesso!\n\n E o Jogador %d\n", res);
             return 1;
         } else {
             printf("Jogador inexistente!\n");
@@ -208,6 +208,7 @@ Object* ReciveInitialObjects() {
 void* ReciveCurrentData(void *dados) {
     ThreadReferences *x = (ThreadReferences*) dados;
     char str[50];
+    int nplayer;
     int fd, i, existe = 0;
     Object *it, *temp, *ant = NULL;
     Object b;
@@ -253,16 +254,27 @@ void* ReciveCurrentData(void *dados) {
                         pthread_exit(0);
                     } else {
                         if (b.type == -3) {
+                            nplayer = 1;
+                            clear();
+                            init_pair(1, COLOR_WHITE, COLOR_BLACK);
+
+                            attron(COLOR_PAIR(1));
+                            mvprintw(5, 5, "Jogo Terminou");
+                            it = x->lObjects;
+                            while (it != NULL) {
+                                if (it->type = 1) {
+                                    mvprintw(1 + nplayer, 40, "Jogador %d : %d", nplayer, it->playerInfo.score);
+                                    nplayer++;
+                                }
+                                it = it->p;
+                            }
+                            sleep(5);
                             clear();
                             delwin(x->mainwin);
                             endwin();
                             refresh();
-                            printf("Jogo Acabou -> Ganhou!\n");
-                            fflush(stdout);
-                            sleep(2);
                             pthread_exit(0);
                         }
-
                     }
                 }
 
@@ -282,8 +294,10 @@ void* ReciveCurrentData(void *dados) {
                     } else {
                         it->x = b.x;
                         it->y = b.y;
-                        if(b.type == 1){
+                        if (b.type == 1) {
                             it->playerInfo = b.playerInfo;
+                        } else if (b.type == 7) {
+                            it->type = b.type;
                         }
                     }
                     break;
@@ -312,8 +326,8 @@ void* ReciveCurrentData(void *dados) {
 }
 
 void Show(Object *ob) {
-    
-    int nplayer=0;
+
+    int nplayer = 0;
     Object *it;
     it = ob;
     clear();
@@ -334,6 +348,7 @@ void Show(Object *ob) {
     init_pair(14, COLOR_BLUE, COLOR_BLACK);
     init_pair(15, COLOR_WHITE, COLOR_BLACK);
     init_pair(16, COLOR_RED, COLOR_RED);
+    init_pair(17, COLOR_WHITE, COLOR_GREEN);
 
     while (it != NULL) {
         if (it->type == 0) {
@@ -345,7 +360,7 @@ void Show(Object *ob) {
                 mvprintw(it->y, it->x, "P");
                 nplayer++;
                 attron(COLOR_PAIR(9));
-                mvprintw(2, 40, "Jogador %d : %d",nplayer, it->playerInfo.score);
+                mvprintw(1 + nplayer, 40, "Jogador %d : %d", nplayer, it->playerInfo.score);
             } else if (it->type == 2) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "E");
@@ -358,6 +373,12 @@ void Show(Object *ob) {
             } else if (it->type == 5) {
                 attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "M");
+            } else if (it->type == 6) {
+                attron(COLOR_PAIR(9));
+                mvprintw(it->y, it->x, "S");
+            } else if (it->type == 7) {
+                attron(COLOR_PAIR(17));
+                mvprintw(it->y, it->x, "S");
             } else if (it->type == 8) {
                 attron(COLOR_PAIR(12));
                 mvprintw(it->y, it->x, "o");

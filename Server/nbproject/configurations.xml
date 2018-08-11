@@ -15,9 +15,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>ClientManagement.c</itemPath>
       <itemPath>MainServer.c</itemPath>
-      <itemPath>SOTools.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -46,13 +44,9 @@
       </compileType>
       <item path="../EstruturasComunicacao.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="ClientManagement.c" ex="false" tool="0" flavor2="0">
-      </item>
       <item path="ClientManagement.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="MainServer.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="SOTools.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="SOTools.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -79,13 +73,9 @@
       </compileType>
       <item path="../EstruturasComunicacao.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="ClientManagement.c" ex="false" tool="0" flavor2="0">
-      </item>
       <item path="ClientManagement.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="MainServer.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="SOTools.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="SOTools.h" ex="false" tool="3" flavor2="0">
       </item>
