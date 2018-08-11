@@ -62,6 +62,8 @@ void CreateFire(Object *lObjects, Object *bomb);
 void *CheckDamage(void *data);
 void DropItem(Object *lObjects, Object enemy, Client *lClients);
 void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lClients);
+void *MegaBomb(void *data);
+void CreateMegaFire(Object *lObjects, Object *bomb);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -544,7 +546,7 @@ void *Game(void *data) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
             if (ActionPlayer(x->lObjects, j, x->lClients) == 1) {
-                *(x->exit) = 1;
+                // *(x->exit) = 1;
             }
         }
     }
@@ -585,6 +587,11 @@ int ActionPlayer(Object *lObjects, Play play, Client *lClients) {
                 if (play.ascii == 32) {
                     x->player = it;
                     pthread_create(&recebe, NULL, &Bomb, (void *) x);
+                } else {
+                    if (toupper(play.ascii) == 'B') {
+                        x->player = it;
+                        pthread_create(&recebe, NULL, &MegaBomb, (void *) x);
+                    }
                 }
             }
         }
@@ -1066,5 +1073,145 @@ void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lCli
     }
 
 
+
+}
+
+void *MegaBomb(void *data) {
+    ThreadReferencesBombs *x = (ThreadReferencesBombs*) data;
+    ThreadReferencesBombsAction *d = (ThreadReferencesBombsAction*) malloc(sizeof (ThreadReferencesBombsAction));
+    pthread_t recebe;
+    int exit;
+
+    Object *it;
+    Object *temp;
+
+    //CREATE BOMB
+    Object *bomb = (Object*) malloc(sizeof (Object));
+
+    bomb->id = ++id;
+    bomb->type = 12;
+    bomb->status = 1;
+    bomb->p = NULL;
+    bomb->explosion = NULL;
+    bomb->x = x->player->x;
+    bomb->y = x->player->y;
+
+    //SEND BOMB
+    SendAll(*bomb, x->lClients);
+
+    exit = 0;
+    d->bomb = bomb;
+    d->exit = &exit;
+    d->lClients = x->lClients;
+    d->lObjects = x->lObjects;
+
+    sleep(3);
+
+    bomb->status = 0;
+    SendAll(*bomb, x->lClients);
+
+    CreateMegaFire(x->lObjects, bomb);
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            SendAll(*it, x->lClients);
+            it = it->p;
+        }
+    }
+
+    pthread_create(&recebe, NULL, &CheckDamage, (void *) d);
+
+    sleep(1.5);
+
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            it->status = 0;
+            SendAll(*it, x->lClients);
+            it = it->p;
+        }
+    }
+    exit = 1;
+    it = bomb->explosion;
+    if (bomb->explosion != NULL) {
+        while (it != NULL) {
+            temp = it;
+            it = it->p;
+            if (it != NULL)
+                free(temp);
+        }
+    }
+    free(bomb);
+    free(x);
+    pthread_exit(0);
+}
+
+void CreateMegaFire(Object *lObjects, Object *bomb) {
+    Object *it = bomb;
+    Object *itb = lObjects;
+    Object temp, *new;
+
+    int find = 0;
+    int destruc = 0;
+    temp = *bomb;
+
+    id++;
+    new = (Object*) malloc(sizeof (Object));
+    new->status = 1;
+    new->id = id;
+    new->p = NULL;
+    new->type = 5;
+    new->x = temp.x;
+    new->y = temp.y;
+
+    it->explosion = new;
+    it = new;
+
+    for (int i = 0; i < 4; i++) {
+        temp = *bomb;
+        destruc = 0;
+        for (int j = 0; j < 4; j++) {
+            if (i == 0) {
+                temp.y++;
+            } else if (i == 1) {
+                temp.y--;
+            } else if (i == 2) {
+                temp.x++;
+            } else if (i == 3) {
+                temp.x--;
+            }
+
+            find = 1;
+            itb = lObjects;
+            pthread_mutex_lock(&modifyList);
+            while (itb != NULL) {
+                if (itb->x == temp.x && itb->y == temp.y && (itb->type == 0 || destruc == 1)) {
+                    find = 0;
+                    j = 2;
+                    break;
+                } else {
+                    if (itb->x == temp.x && itb->y == temp.y && itb->type == 3) {
+                        destruc = 1;
+                        break;
+                    }
+                }
+                itb = itb->p;
+            }
+            pthread_mutex_unlock(&modifyList);
+            if (find == 1) {
+                id++;
+                new = (Object*) malloc(sizeof (Object));
+                new->type = 1;
+                new->id = id;
+                new->p = NULL;
+                new->type = 5;
+                new->x = temp.x;
+                new->y = temp.y;
+
+                it->p = new;
+                it = new;
+            }
+        }
+    }
 
 }

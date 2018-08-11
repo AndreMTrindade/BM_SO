@@ -369,7 +369,7 @@ void Show(Object *ob) {
                 mvprintw(it->y, it->x, "M");
             } else if (it->type == 4) {
                 attron(COLOR_PAIR(7));
-                mvprintw(it->y, it->x, "X");
+                mvprintw(it->y, it->x, "x");
             } else if (it->type == 5) {
                 attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "M");
@@ -391,6 +391,9 @@ void Show(Object *ob) {
             } else if (it->type == 11) {
                 attron(COLOR_PAIR(12));
                 mvprintw(it->y, it->x, "p");
+            } else if (it->type == 12) {
+                attron(COLOR_PAIR(7));
+                mvprintw(it->y, it->x, "X");
             }
         }
         it = it->p;
