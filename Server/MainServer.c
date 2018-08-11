@@ -41,7 +41,6 @@ typedef struct {
     int* exit;
 } ThreadReferencesBombsAction;
 
-
 pthread_mutex_t lockFifoJogo;
 pthread_mutex_t modifyList;
 
@@ -54,7 +53,7 @@ void PutPlayer(Object *new, Object *lObjects);
 void *Game(void *data);
 void SendAll(Object new, Client *lClients);
 void ActionPlayer(Object *lObjects, Play play, Client *lClients);
-int CheckMovement(Object *lObjects, Object *object, Play play);
+int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients);
 void PutEnemys(Object *new, Object *lObjects);
 void *MoveEnemy(void *data);
 void *CheckGameOver(void *data);
@@ -62,6 +61,7 @@ void *Bomb(void *data);
 void CreateFire(Object *lObjects, Object *bomb);
 void *CheckDamage(void *data);
 void DropItem(Object *lObjects, Object enemy, Client *lClients);
+void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lClients);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -262,6 +262,7 @@ void *ClientLoginRequest(void *data) {
     int fd, fd_resp, i;
     int res;
     int *Exit;
+    int count = 1;
 
     Client newRequest;
 
@@ -303,6 +304,10 @@ void *ClientLoginRequest(void *data) {
                 fflush(stdout);
             } else {
                 res = CheckClient(newRequest, lClients);
+                if (res == 1) {
+                    res = count;
+                    count++;
+                }
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
                 if (Count(lClients) == 1) {//ALTERAR
@@ -331,9 +336,9 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
     Object *itb;
     Object *ult;
     Object *new;
-    PlayerInfo *info;
+    PlayerInfo info;
 
-    int nMaxPantano;
+    int nMaxPprevano;
     int nMaxEnemy, nMaxObjects;
     int i;
     const char* en = getenv("NENEMY");
@@ -364,17 +369,17 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
     while (it != NULL) {
         if (it->status == 1) {
             new = (Object*) malloc(sizeof (Object));
-            info = (PlayerInfo*) malloc(sizeof (PlayerInfo));
             id++;
             new->id = id;
             new->status = 1;
             new->type = 1;
-            new->playerInfo = info;
+
             new->client = it;
 
-            info->score = 0;
-            info->nMegaBombs = 2;
-            info->bombs = 3;
+            info.score = 0;
+            info.nMegaBombs = 2;
+            info.bombs = 3;
+            new->playerInfo = info;
 
             PutPlayer(new, lObjects);
             ult->p = new;
@@ -396,15 +401,15 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         ult = new;
     }
 
-    //    nMaxPantano = 5 + (rand() % 10);
+    //    nMaxPprevano = 5 + (rand() % 10);
     //
-    //    for (i = 0; i < nMaxPantano; i++) {
+    //    for (i = 0; i < nMaxPprevano; i++) {
     //        novo = (Objecto*) malloc(sizeof (Objecto));
     //        id++;
     //        novo->id = id;
     //        novo->ativo = 1;
-    //        novo->tipo = 6;
-    //        ColocaPantano(novo, bjectos);
+    //        novo->type = 6;
+    //        ColocaPprevano(novo, bjectos);
     //        ult->p = novo;
     //        novo->p = NULL;
     //        ult = novo;
@@ -415,7 +420,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
 
 void PutPlayer(Object *new, Object *lObjects) {
     Object *it;
-    int x = 2, y = 2, sair = 0;
+    int x = 2, y = 2, exit = 0;
 
     srand(time(NULL));
 
@@ -423,21 +428,21 @@ void PutPlayer(Object *new, Object *lObjects) {
         it = lObjects;
         while (it != NULL) {
             if (it->x == x && it->y == y) {
-                sair = 0;
+                exit = 0;
                 break;
             }
             new->x = x;
             new->y = y;
             it = it->p;
-            sair = 1;
+            exit = 1;
         }
         y = rand() % 20;
-    } while (sair == 0);
+    } while (exit == 0);
 }
 
 void PutEnemys(Object *new, Object *lObjects) {
     Object *it;
-    int x = 15, y = 2, sair = 0;
+    int x = 15, y = 2, exit = 0;
 
     srand(time(NULL));
 
@@ -445,18 +450,18 @@ void PutEnemys(Object *new, Object *lObjects) {
         it = lObjects;
         while (it != NULL) {
             if (it->x == x && it->y == y) {
-                sair = 0;
+                exit = 0;
                 break;
             }
             new->x = x;
             new->y = y;
             it = it->p;
-            sair = 1;
+            exit = 1;
         }
         y = rand() % 20;
         x = rand() % 20;
         x += 10;
-    } while (sair == 0);
+    } while (exit == 0);
 }
 
 void *Game(void *data) {
@@ -539,7 +544,7 @@ void ActionPlayer(Object *lObjects, Play play, Client *lClients) {
     while (it != NULL) {
         if (it->type == 1 && it->client->PID == play.PID) {
             if (play.ascii != 32 && toupper(play.ascii) != 'B') {
-                if (CheckMovement(lObjects, it, play) == 1) {
+                if (CheckMovement(lObjects, it, play, x->lClients) == 1) {
                     SendAll(*it, lClients);
                     break;
                 }
@@ -583,7 +588,7 @@ void SendAll(Object new, Client *lClients) {
     }
 }
 
-int CheckMovement(Object *lObjects, Object *object, Play play) {
+int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients) {
     Object *it;
     Object new;
 
@@ -611,10 +616,18 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
     while (it != NULL) {
         if (object->type == 2) {
             if (it->x == new.x && it->y == new.y && it->type != 1 && it->status == 1) {
+                if (it->type >= 8 && it->type <= 11 && object->type == 1) {
+                    CathItem(it, lObjects, object, lClients);
+                    break;
+                }
                 return 0;
             }
         } else {
             if (it->x == new.x && it->y == new.y && it->type != 2 && it->status == 1) {
+                if (it->type >= 8 && it->type <= 11) {
+                    CathItem(it, lObjects, object, lClients);
+                    break;
+                }
                 return 0;
             }
         }
@@ -654,7 +667,7 @@ void *MoveEnemy(void *data) {
             }
         }
         pthread_mutex_lock(&modifyList);
-        if (CheckMovement(x->lObjects, x->enemy, play) == 0) {
+        if (CheckMovement(x->lObjects, x->enemy, play, x->lClients) == 0) {
             change = 1;
         } else {
             change = 0;
@@ -685,7 +698,7 @@ void *CheckGameOver(void *data) {
             if (it->type == 1) {
                 it2 = x->lObjects;
                 while (it2 != NULL) {
-                    if (it->x == it2->x && it->y == it2->y) {
+                    if (it->x == it2->x && it->y == it2->y && it2->status == 1) {
                         if (it2->type == 2) {
                             sprintf(str, "../JJJ%d", it->client->PID);
                             fd = open(str, O_WRONLY);
@@ -724,7 +737,6 @@ void *Bomb(void *data) {
     bomb->id = ++id;
     bomb->type = 4;
     bomb->status = 1;
-    bomb->playerInfo = NULL;
     bomb->p = NULL;
     bomb->explosion = NULL;
     bomb->x = x->player->x;
@@ -879,11 +891,11 @@ void *CheckDamage(void *data) {
                         if (it->type == 3) {
                             it->status = 0;
                             SendAll(*it, x->lClients);
-                        } else{
-                            if(it->type == 2){
+                        } else {
+                            if (it->type == 2) {
                                 it->status = 0;
                                 SendAll(*it, x->lClients);
-                                DropItem(x->lObjects,*it,x->lClients);
+                                DropItem(x->lObjects, *it, x->lClients);
                             }
                         }
                     }
@@ -923,7 +935,7 @@ void DropItem(Object *lObjects, Object enemy, Client *lClients) {
 
     new = (Object*) malloc(sizeof (Object));
     it->p = new;
-    
+
     id++;
     new->id = id;
     new->type = temp;
@@ -933,5 +945,67 @@ void DropItem(Object *lObjects, Object enemy, Client *lClients) {
     new->y = enemy.y;
 
     SendAll(*new, lClients);
+
+}
+
+void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lClients) {
+    Object *it;
+
+    int count = 0;
+
+
+    if (dropObject->type == 8) {
+        player->playerInfo.bombs++;
+        player->playerInfo.score++;
+    } else {
+        if (dropObject->type == 9) {
+            player->playerInfo.nMegaBombs++;
+            player->playerInfo.score++;
+
+        } else if (dropObject->type == 11) {
+            player->playerInfo.score += 10;
+
+        } else if (dropObject->type == 10) {
+            it = lObjects;
+            while (it != NULL) {
+                if (it->type >= 8 && it->type <= 9) {
+                    switch (it->type) {
+                        case 8:
+                            player->playerInfo.bombs++;
+                            player->playerInfo.score++;
+                            break;
+                        case 9:
+                            player->playerInfo.nMegaBombs++;
+                            player->playerInfo.score++;
+                            break;
+                        case 10:
+                            ///COLETOS AUTOMATICO
+                            player->playerInfo.score++;
+                            break;
+                        case 11:
+                            player->playerInfo.score += 10;
+                            break;
+                    }
+                    count++;
+                    it->status = 0;
+                    SendAll(*it, lClients);
+                }
+                if (count == 5) {
+                    break;
+                }
+
+                it = it->p;
+            }
+        }
+    }
+    it = lObjects;
+
+    SendAll(*player, lClients);
+
+    it = lObjects;
+
+    dropObject->status = 0;
+    SendAll(*dropObject, lClients);
+
 
 }

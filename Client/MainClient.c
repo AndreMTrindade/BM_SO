@@ -145,8 +145,8 @@ int SendLoginData(Client c) {
         sleep(3);
         return -1;
     } else {
-        if (res == 1) {
-            printf("Login efectuado com sucesso!\n");
+        if (res >= 1) {
+            printf("Login efectuado com sucesso!\n\n E o Jogador %d\n",res);
             return 1;
         } else {
             printf("Jogador inexistente!\n");
@@ -232,7 +232,7 @@ void* ReciveCurrentData(void *dados) {
                 sleep(2);
                 pthread_exit(0);
             } else {
-                if (b.type == -1) {         
+                if (b.type == -1) {
                     clear();
                     delwin(x->mainwin);
                     endwin();
@@ -282,6 +282,9 @@ void* ReciveCurrentData(void *dados) {
                     } else {
                         it->x = b.x;
                         it->y = b.y;
+                        if(b.type == 1){
+                            it->playerInfo = b.playerInfo;
+                        }
                     }
                     break;
                 }
@@ -309,7 +312,8 @@ void* ReciveCurrentData(void *dados) {
 }
 
 void Show(Object *ob) {
-    int contador = 0;
+    
+    int nplayer=0;
     Object *it;
     it = ob;
     clear();
@@ -339,30 +343,33 @@ void Show(Object *ob) {
             if (it->type == 1) {
                 attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "P");
+                nplayer++;
+                attron(COLOR_PAIR(9));
+                mvprintw(2, 40, "Jogador %d : %d",nplayer, it->playerInfo.score);
             } else if (it->type == 2) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "E");
             } else if (it->type == 3) {
                 attron(COLOR_PAIR(6));
                 mvprintw(it->y, it->x, "M");
-            }else if (it->type == 4) {
+            } else if (it->type == 4) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "X");
             } else if (it->type == 5) {
                 attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "M");
-            }  else if (it->type == 8) {
-                attron(COLOR_PAIR(5));
+            } else if (it->type == 8) {
+                attron(COLOR_PAIR(12));
                 mvprintw(it->y, it->x, "o");
-            }  else if (it->type == 9) {
+            } else if (it->type == 9) {
                 attron(COLOR_PAIR(12));
                 mvprintw(it->y, it->x, "O");
-            }  else if (it->type == 10) {
+            } else if (it->type == 10) {
                 attron(COLOR_PAIR(12));
-                mvprintw(it->y, it->x, "P");
-            }  else if (it->type == 11) {
-                attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "C");
+            } else if (it->type == 11) {
+                attron(COLOR_PAIR(12));
+                mvprintw(it->y, it->x, "p");
             }
         }
         it = it->p;
