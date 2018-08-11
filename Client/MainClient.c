@@ -232,7 +232,7 @@ void* ReciveCurrentData(void *dados) {
                 sleep(2);
                 pthread_exit(0);
             } else {
-                if (b.type == -1) {
+                if (b.type == -1) {         
                     clear();
                     delwin(x->mainwin);
                     endwin();
@@ -351,6 +351,18 @@ void Show(Object *ob) {
             } else if (it->type == 5) {
                 attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "M");
+            }  else if (it->type == 8) {
+                attron(COLOR_PAIR(5));
+                mvprintw(it->y, it->x, "o");
+            }  else if (it->type == 9) {
+                attron(COLOR_PAIR(12));
+                mvprintw(it->y, it->x, "O");
+            }  else if (it->type == 10) {
+                attron(COLOR_PAIR(12));
+                mvprintw(it->y, it->x, "P");
+            }  else if (it->type == 11) {
+                attron(COLOR_PAIR(5));
+                mvprintw(it->y, it->x, "C");
             }
         }
         it = it->p;

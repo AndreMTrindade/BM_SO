@@ -61,6 +61,7 @@ void *CheckGameOver(void *data);
 void *Bomb(void *data);
 void CreateFire(Object *lObjects, Object *bomb);
 void *CheckDamage(void *data);
+void DropItem(Object *lObjects, Object enemy, Client *lClients);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -609,11 +610,11 @@ int CheckMovement(Object *lObjects, Object *object, Play play) {
 
     while (it != NULL) {
         if (object->type == 2) {
-            if (it->x == new.x && it->y == new.y && it->type != 1) {
+            if (it->x == new.x && it->y == new.y && it->type != 1 && it->status == 1) {
                 return 0;
             }
         } else {
-            if (it->x == new.x && it->y == new.y && it->type != 2) {
+            if (it->x == new.x && it->y == new.y && it->type != 2 && it->status == 1) {
                 return 0;
             }
         }
@@ -662,6 +663,7 @@ void *MoveEnemy(void *data) {
         SendAll(*(x->enemy), x->lClients);
         sleep(1);
     }
+    pthread_exit(0);
 }
 
 void *CheckGameOver(void *data) {
@@ -711,8 +713,8 @@ void *Bomb(void *data) {
     ThreadReferencesBombs *x = (ThreadReferencesBombs*) data;
     ThreadReferencesBombsAction *d = (ThreadReferencesBombsAction*) malloc(sizeof (ThreadReferencesBombsAction));
     pthread_t recebe;
+    int exit;
 
-    int ex = 0;
     Object *it;
     Object *temp;
 
@@ -730,10 +732,10 @@ void *Bomb(void *data) {
 
     //SEND BOMB
     SendAll(*bomb, x->lClients);
-    
-    *exit = 0;
+
+    exit = 0;
     d->bomb = bomb;
-    d->exit = &ex;
+    d->exit = &exit;
     d->lClients = x->lClients;
     d->lObjects = x->lObjects;
 
@@ -763,7 +765,7 @@ void *Bomb(void *data) {
             it = it->p;
         }
     }
-    ex = 1;
+    exit = 1;
     it = bomb->explosion;
     if (bomb->explosion != NULL) {
         while (it != NULL) {
@@ -775,7 +777,6 @@ void *Bomb(void *data) {
     }
     free(bomb);
     free(x);
-    free(exit);
     pthread_exit(0);
 }
 
@@ -816,7 +817,7 @@ void CreateFire(Object *lObjects, Object *bomb) {
             itb = lObjects;
             pthread_mutex_lock(&modifyList);
             while (itb != NULL) {
-                if (itb->x == temp.x && itb->y == temp.y && itb->type == 1) {
+                if (itb->x == temp.x && itb->y == temp.y && itb->type == 0) {
                     find = 0;
 
                     j = 2;
@@ -857,16 +858,18 @@ void *CheckDamage(void *data) {
             pthread_mutex_lock(&modifyList);
             it = x->lObjects;
             while (it != NULL) {
-                if (itb->x = it->x && itb->y == it->y) {
-                    if (it->type == 2) {
+                if (itb->x == it->x && itb->y == it->y && it->status == 1) {
+                    if (it->type == 1) {
                         it->status = 0;
                         sprintf(str, "../JJJ%d", it->client->PID);
+                        it->client->status = 0;
                         fd = open(str, O_WRONLY);
 
                         if (fd == -1) {
                             printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
                             fflush(stdout);
                         } else {
+                            sleep(0.3);
                             pthread_mutex_lock(&lockFifoJogo);
                             write(fd, &final, sizeof (final));
                             pthread_mutex_unlock(&lockFifoJogo);
@@ -876,14 +879,59 @@ void *CheckDamage(void *data) {
                         if (it->type == 3) {
                             it->status = 0;
                             SendAll(*it, x->lClients);
+                        } else{
+                            if(it->type == 2){
+                                it->status = 0;
+                                SendAll(*it, x->lClients);
+                                DropItem(x->lObjects,*it,x->lClients);
+                            }
                         }
                     }
                 }
                 it = it->p;
             }
             pthread_mutex_unlock(&modifyList);
-            itb = it->p;
+            itb = itb->p;
         }
 
     }
+    pthread_exit(0);
+}
+
+void DropItem(Object *lObjects, Object enemy, Client *lClients) {
+    Object *it, *new;
+    int temp;
+
+    srand(time(NULL));
+    int prob = rand() % 101;
+
+
+    if (prob > 0 && prob <= 10) {
+        temp = 8;
+    } else if (prob > 10 && prob <= 35) {
+        temp = 9;
+    } else if (prob > 35 && prob <= 55) {
+        temp = 10;
+    } else if (prob > 55) {
+        temp = 11;
+    }
+
+    it = lObjects;
+    while (it->p != NULL) {
+        it = it->p;
+    }
+
+    new = (Object*) malloc(sizeof (Object));
+    it->p = new;
+    
+    id++;
+    new->id = id;
+    new->type = temp;
+    new->status = 1;
+    new->explosion = NULL;
+    new->x = enemy.x;
+    new->y = enemy.y;
+
+    SendAll(*new, lClients);
+
 }
