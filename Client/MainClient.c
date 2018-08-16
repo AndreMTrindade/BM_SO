@@ -25,6 +25,8 @@ void* ReciveCurrentData(void *dados);
 void Show(Object *ob);
 void CleanStdin(void);
 
+int player;
+
 int main(int argc, char** argv) {
 
     Client c;
@@ -147,6 +149,7 @@ int SendLoginData(Client c) {
     } else {
         if (res >= 1) {
             printf("Login efectuado com sucesso!\n\n E o Jogador %d\n", res);
+            player = res;
             return 1;
         } else {
             printf("Jogador inexistente!\n");
@@ -361,6 +364,9 @@ void Show(Object *ob) {
                 nplayer++;
                 attron(COLOR_PAIR(9));
                 mvprintw(1 + nplayer, 40, "Jogador %d : %d", nplayer, it->playerInfo.score);
+                if (player == nplayer) {
+                    mvprintw(20, 40, "Bombas %d  Mega Bombas %d", it->playerInfo.bombs, it->playerInfo.nMegaBombs);
+                }
             } else if (it->type == 2) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "E");

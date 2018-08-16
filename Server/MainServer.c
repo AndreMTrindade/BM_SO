@@ -413,7 +413,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         it = it->p;
     }
 
-    for (i = 0; i < 1; i++) {
+    for (i = 0; i < 5; i++) {
         new = (Object*) malloc(sizeof (Object));
         id++;
         new->id = id;
@@ -585,12 +585,18 @@ int ActionPlayer(Object *lObjects, Play play, Client *lClients) {
                 }
             } else {
                 if (play.ascii == 32) {
-                    x->player = it;
-                    pthread_create(&recebe, NULL, &Bomb, (void *) x);
+                    if (it->playerInfo.bombs > 0) {
+                        x->player = it;
+                        pthread_create(&recebe, NULL, &Bomb, (void *) x);
+                        it->playerInfo.bombs--;
+                    }
                 } else {
                     if (toupper(play.ascii) == 'B') {
-                        x->player = it;
-                        pthread_create(&recebe, NULL, &MegaBomb, (void *) x);
+                        if (it->playerInfo.nMegaBombs > 0) {
+                            x->player = it;
+                            pthread_create(&recebe, NULL, &MegaBomb, (void *) x);
+                            it->playerInfo.nMegaBombs--;
+                        }
                     }
                 }
             }
