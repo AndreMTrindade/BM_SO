@@ -259,23 +259,25 @@ void* ReciveCurrentData(void *dados) {
                         if (b.type == -3) {
                             nplayer = 1;
                             clear();
-                            init_pair(1, COLOR_WHITE, COLOR_BLACK);
-
-                            attron(COLOR_PAIR(1));
-                            mvprintw(5, 5, "Jogo Terminou");
+//                            init_pair(1, COLOR_WHITE, COLOR_BLACK);
+//
+//                            attron(COLOR_PAIR(1));
+                            mvprintw(10, 10, "Jogo Terminou");
                             it = x->lObjects;
                             while (it != NULL) {
-                                if (it->type = 1) {
+                                if (it->type == 1) {
                                     mvprintw(1 + nplayer, 40, "Jogador %d : %d", nplayer, it->playerInfo.score);
                                     nplayer++;
                                 }
                                 it = it->p;
                             }
-                            sleep(5);
+                          //  sleep(5);
+                            getch();
                             clear();
                             delwin(x->mainwin);
                             endwin();
                             refresh();
+                            *(x->Exit) = 1;
                             pthread_exit(0);
                         }
                     }
@@ -286,6 +288,7 @@ void* ReciveCurrentData(void *dados) {
             while (it != NULL) {
                 if (it->id == b.id) {
                     existe = 1;
+
                     if (b.status == 0) {
                         if (ant == NULL) {
                             x->lObjects = x->lObjects->p;
@@ -352,6 +355,8 @@ void Show(Object *ob) {
     init_pair(15, COLOR_WHITE, COLOR_BLACK);
     init_pair(16, COLOR_RED, COLOR_RED);
     init_pair(17, COLOR_WHITE, COLOR_GREEN);
+    init_pair(18, COLOR_CYAN, COLOR_CYAN);
+    init_pair(19, COLOR_GREEN, COLOR_GREEN);
 
     while (it != NULL) {
         if (it->type == 0) {
@@ -400,7 +405,13 @@ void Show(Object *ob) {
             } else if (it->type == 12) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "X");
-            }
+            } else if(it->type == 13) {
+                attron(COLOR_PAIR(18));
+                mvprintw(it->y, it->x, "P");
+            }  else if(it->type == 14) {
+                attron(COLOR_PAIR(19));
+                mvprintw(it->y, it->x, "p");
+            } 
         }
         it = it->p;
     }

@@ -41,6 +41,12 @@ typedef struct {
     int* exit;
 } ThreadReferencesBombsAction;
 
+typedef struct {
+    Client *lClients;
+    Object *player;
+    Object *swamp;
+} ThreadReferencesSwamp;
+
 pthread_mutex_t lockFifoJogo;
 pthread_mutex_t modifyList;
 
@@ -64,6 +70,8 @@ void DropItem(Object *lObjects, Object enemy, Client *lClients);
 void CathItem(Object *dropObject, Object *lObjects, Object *player, Client *lClients);
 void *MegaBomb(void *data);
 void CreateMegaFire(Object *lObjects, Object *bomb);
+void *CheckSwamp(void *data);
+void *Messages(void *data);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -149,6 +157,7 @@ Client* Console(Client *clientes) {
 Object* ReadMaze() {
     FILE *fd = fopen("../Maze.txt", "rt");
     char c;
+    Object *find = NULL;
 
     if (fd == NULL) {
         return NULL;
@@ -224,6 +233,35 @@ Object* ReadMaze() {
                             last->p->type = 6;
                             last->p->p = NULL;
                             last = last->p;
+                        }
+                    } else {
+                        if (c == 'P') {
+                            if (lObjects == NULL) {
+                                lObjects = (Object*) malloc(sizeof (Object));
+                                lObjects->status = 1;
+                                lObjects->id = ++id;
+                                lObjects->type = 13;
+                                lObjects->x = x;
+                                lObjects->y = y;
+                                lObjects->p = NULL;
+                                last = lObjects;
+                            } else {
+                                last->p = (Object*) malloc(sizeof (Object));
+                                last->p->status = 1;
+                                last->p->id = ++id;
+                                last->p->x = x;
+                                last->p->y = y;
+                                last->p->type = 13;
+                                last->p->p = NULL;
+                                last = last->p;
+                            }
+                            if (find == NULL) {
+                                find = last;
+                            } else {
+                                last->portal = find;
+                                find->portal = last;
+                                find = NULL;
+                            }
                         }
                     }
                 }
@@ -360,11 +398,13 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
     Object *itb;
     Object *ult;
     Object *new;
+    Object tempEnemy;
     PlayerInfo info;
+
 
     int nMaxPprevano;
     int nMaxEnemy, nMaxObjects;
-    int i;
+    int i, x, y;
     const char* en = getenv("NENEMY");
     const char* ob = getenv("NOBJECT");
 
@@ -413,7 +453,7 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         it = it->p;
     }
 
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 1; i++) {
         new = (Object*) malloc(sizeof (Object));
         id++;
         new->id = id;
@@ -425,20 +465,24 @@ Object CreateInitialObjects(Object *lObjects, Client *lClients) {
         ult = new;
     }
 
+    //    for (i = 0; i < 5; i++) {
+    //     PutEnemys(&tempEnemy, lObjects);
+    //     DropItem(lObjects, tempEnemy,lClients);
+    //    }
+
     //    nMaxPprevano = 5 + (rand() % 10);
     //
-    //    for (i = 0; i < nMaxPprevano; i++) {
-    //        novo = (Objecto*) malloc(sizeof (Objecto));
-    //        id++;
-    //        novo->id = id;
-    //        novo->ativo = 1;
-    //        novo->type = 6;
-    //        ColocaPprevano(novo, bjectos);
-    //        ult->p = novo;
-    //        novo->p = NULL;
-    //        ult = novo;
-    //        maxElementos++;
-    //    }
+    for (i = 0; i < 5; i++) {
+        new = (Object*) malloc(sizeof (Object));
+        id++;
+        new->id = id;
+        new->status = 1;
+        new->type = 14;
+        PutEnemys(new, lObjects);
+        ult->p = new;
+        new->p = NULL;
+        ult = new;
+    }
 
 }
 
@@ -638,7 +682,9 @@ void SendAll(Object new, Client *lClients) {
 int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients) {
     Object *it;
     Object new;
-
+    Client *client;
+    pthread_t recebe;
+    
     new.x = object->x;
     new.y = object->y;
 
@@ -663,12 +709,7 @@ int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients)
     while (it != NULL) {
         if (object->type == 2) {
             if (it->x == new.x && it->y == new.y && it->type != 1 && it->status == 1) {
-                if (it->type >= 8 && it->type <= 11 && object->type == 1) {
-                    CathItem(it, lObjects, object, lClients);
-                    break;
-                }
                 if (it->type == 6) break;
-                if (it->type == 7) return 2;
                 return 0;
             }
         } else {
@@ -676,9 +717,56 @@ int CheckMovement(Object *lObjects, Object *object, Play play, Client *lClients)
                 if (it->type >= 8 && it->type <= 11) {
                     CathItem(it, lObjects, object, lClients);
                     break;
+                } else {
+                    if (it->type == 13) {
+                        if (toupper(play.ascii) == 'W' || play.ascii == 30) {
+                            new.x = it->portal->x;
+                            new.y = it->portal->y;
+                            new.y--;
+                        } else {
+                            if (toupper(play.ascii) == 'S' || play.ascii == 31) {
+                                new.x = it->portal->x;
+                                new.y = it->portal->y;
+                                new.y++;
+                            } else {
+                                if (toupper(play.ascii) == 'D' || play.ascii == 16) {
+                                    new.x = it->portal->x;
+                                    new.y = it->portal->y;
+                                    new.x++;
+                                } else {
+                                    if (toupper(play.ascii) == 'A' || play.ascii == 17) {
+                                        new.x = it->portal->x;
+                                        new.y = it->portal->y;
+                                        new.x--;
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    } else {
+                        if(it->type == 14){
+                            ThreadReferencesSwamp *swamp = (ThreadReferencesSwamp*) malloc(sizeof(ThreadReferencesSwamp));
+                            swamp->lClients = lClients;
+                            swamp->swamp = it;
+                            swamp->player = object;
+                            pthread_create(&recebe, NULL, &CheckSwamp, (void *) swamp);
+                            break;
+                        }
+                        
+                    }
                 }
                 if (it->type == 6) break;
-                if (it->type == 7) return 2;
+                if (it->type == 7) {
+                    object->client->status = 4;
+                    client = lClients;
+                    while (client != NULL) {
+                        if (client->status == 1) {
+                            return 0;
+                        }
+                        client = client->p;
+                    }
+                    return 1;
+                }
                 return 0;
             }
         }
@@ -976,13 +1064,13 @@ void DropItem(Object *lObjects, Object enemy, Client *lClients) {
 
 
     if (prob > 0 && prob <= 10) {
-        temp = 8;
-    } else if (prob > 10 && prob <= 35) {
-        temp = 9;
-    } else if (prob > 35 && prob <= 55) {
-        temp = 10;
-    } else if (prob > 55) {
         temp = 11;
+    } else if (prob > 10 && prob <= 35) {
+        temp = 10;
+    } else if (prob > 35 && prob <= 55) {
+        temp = 9;
+    } else if (prob > 55) {
+        temp = 8;
     }
 
     it = lObjects;
@@ -1193,7 +1281,7 @@ void CreateMegaFire(Object *lObjects, Object *bomb) {
             while (itb != NULL) {
                 if (itb->x == temp.x && itb->y == temp.y && (itb->type == 0 || destruc == 1)) {
                     find = 0;
-                    j = 2;
+                    j = 4;
                     break;
                 } else {
                     if (itb->x == temp.x && itb->y == temp.y && itb->type == 3) {
@@ -1220,4 +1308,55 @@ void CreateMegaFire(Object *lObjects, Object *bomb) {
         }
     }
 
+}
+
+void *CheckSwamp(void *data) {
+    ThreadReferencesSwamp *x = (ThreadReferencesSwamp*) data;
+    int i;
+    int fd;
+    char str[50];
+    Object final;
+    final.type = -2;
+
+    for (i = 0; i < 3; i++) {
+        if (x->player->x != x->swamp->x || x->player->y != x->swamp->y) {
+            pthread_exit(0);
+        }
+        sleep(1);
+    }
+    if (x->player->x == x->swamp->x && x->player->y == x->swamp->y) {
+        x->player->client->status = 0;
+        sprintf(str, "../JJJ%d", x->player->client->PID);
+        x->player->client->status = 0;
+        fd = open(str, O_WRONLY);
+
+        if (fd == -1) {
+            printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+            fflush(stdout);
+        } else {
+            sleep(0.3);
+            pthread_mutex_lock(&lockFifoJogo);
+            write(fd, &final, sizeof (final));
+            pthread_mutex_unlock(&lockFifoJogo);
+            close(fd);
+        }
+    }
+    pthread_exit(0);
+}
+
+void *Messages(void *data){
+    ThreadReferences *x = (ThreadReferences*)data;
+    int fd;
+    mkfifo(FIFO_MESSAGES, 0660);
+    fd = open(FIFO_MESSAGES, O_RDWR);
+    
+    while (*(x->exit) == 0) {
+        i = read(fd, &j, sizeof (j));
+        if (i == sizeof (j)) {
+            if (ActionPlayer(x->lObjects, j, x->lClients) == 1) {
+                // *(x->exit) = 1;
+            }
+        }
+    }
+    pthread_exit(0);
 }

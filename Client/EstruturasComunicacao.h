@@ -9,6 +9,7 @@ extern "C" {
     ///FIFOS
 #define FIFO_LOGIN "../LOGIN"
 #define FIFO_JOGO "../GAME"
+#define FIFO_MESSAGES "../SMS"
 
 typedef struct Client{
    char name[50];
@@ -33,9 +34,15 @@ typedef struct Object{
     PlayerInfo playerInfo;
     struct Object *explosion;
     Client *client;
+    struct Object *portal;
     
     struct Object *p;
 }Object;
+
+typedef struct Message{
+    char message;
+    char sender;
+} Message;
 
 typedef struct Play {
     char ascii;
