@@ -72,6 +72,7 @@ void *MegaBomb(void *data);
 void CreateMegaFire(Object *lObjects, Object *bomb);
 void *CheckSwamp(void *data);
 void *Messages(void *data);
+void SendAllSMS(Message new, Client *lClients);
 
 int main(int argc, char** argv) {
     Client *lClients = ReadClients();
@@ -540,7 +541,7 @@ void *Game(void *data) {
     Object *it;
     Object final;
     int i, fd;
-    pthread_t recebe;
+    pthread_t recebe, recebe2;
     int count = 0;
 
     final.id = -1;
@@ -586,6 +587,8 @@ void *Game(void *data) {
     SendAll(final, x->lClients);
 
     pthread_create(&recebe, NULL, &CheckGameOver, (void *) x);
+     pthread_create(&recebe2, NULL, &Messages, (void *) x);
+     
     while (*(x->exit) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
@@ -1346,17 +1349,40 @@ void *CheckSwamp(void *data) {
 
 void *Messages(void *data){
     ThreadReferences *x = (ThreadReferences*)data;
-    int fd;
+    int fd, i;
+    Message sms;
     mkfifo(FIFO_MESSAGES, 0660);
     fd = open(FIFO_MESSAGES, O_RDWR);
     
     while (*(x->exit) == 0) {
-        i = read(fd, &j, sizeof (j));
-        if (i == sizeof (j)) {
-            if (ActionPlayer(x->lObjects, j, x->lClients) == 1) {
-                // *(x->exit) = 1;
-            }
+        i = read(fd, &sms, sizeof (sms));
+        if (i == sizeof (sms)) {
+            SendAllSMS(sms, x->lClients);
         }
     }
     pthread_exit(0);
+}
+
+void SendAllSMS(Message new, Client *lClients) {
+    char str[50];
+    Client *it = lClients;
+
+    int fd;
+
+    while (it != NULL) {
+        if (it->status == 1) {
+            sprintf(str, "../MMM%d", it->PID);
+            fd = open(str, O_WRONLY);
+
+            if (fd == -1) {
+                printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+                fflush(stdout);
+            } else {
+                write(fd, &new, sizeof (new));
+                close(fd);
+            }
+        }
+        it = it->p;
+
+    }
 }

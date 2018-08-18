@@ -41,7 +41,7 @@ typedef struct Object{
 
 typedef struct Message{
     char message;
-    char sender;
+    int sender;
 } Message;
 
 

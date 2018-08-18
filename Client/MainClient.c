@@ -21,9 +21,12 @@ typedef struct {
 Client* InitialData(Client *c);
 int SendLoginData(Client c);
 Object* ReciveInitialObjects();
-void* ReciveCurrentData(void *dados);
+void* ReciveCurrentData(void *data);
+void* ReciveMessages(void *data);
 void Show(Object *ob);
 void CleanStdin(void);
+void AddMessage(int nSMS, Message *sms, Message nMessage);
+void ShowSMS(Message *sms, int nSMS);
 
 int player;
 
@@ -34,8 +37,10 @@ int main(int argc, char** argv) {
     int fd, fde;
     int Sair = 0;
     char tecla;
+    char sms[50];
     Object *ob;
     Play j;
+    
     ThreadReferences *passadadosThread = (ThreadReferences*) malloc(sizeof (ThreadReferences));
     pthread_t envia;
 
@@ -67,15 +72,22 @@ int main(int argc, char** argv) {
 
     do {
         scanf("%c", &tecla);
-        fde = open(FIFO_JOGO, O_WRONLY);
-        if (fde == -1) {
-            printf("Erro ao Abrir FIFO \n");
-            fflush(stdout);
+        if (tecla == 'p' || tecla == 'P') {
+            echo();
+            mvprintw(33, 26, "");
+            scanf("%s", sms);
+            noecho();
         } else {
-            j.PID = getpid();
-            j.ascii = (int) tecla;
-            write(fde, &j, sizeof (j));
-            close(fde);
+            fde = open(FIFO_JOGO, O_WRONLY);
+            if (fde == -1) {
+                printf("Erro ao Abrir FIFO \n");
+                fflush(stdout);
+            } else {
+                j.PID = getpid();
+                j.ascii = (int) tecla;
+                write(fde, &j, sizeof (j));
+                close(fde);
+            }
         }
 
     } while (Sair == 0);
@@ -208,8 +220,8 @@ Object* ReciveInitialObjects() {
     return lObjets;
 }
 
-void* ReciveCurrentData(void *dados) {
-    ThreadReferences *x = (ThreadReferences*) dados;
+void* ReciveCurrentData(void *data) {
+    ThreadReferences *x = (ThreadReferences*) data;
     char str[50];
     int nplayer;
     int fd, i, existe = 0;
@@ -259,9 +271,6 @@ void* ReciveCurrentData(void *dados) {
                         if (b.type == -3) {
                             nplayer = 1;
                             clear();
-//                            init_pair(1, COLOR_WHITE, COLOR_BLACK);
-//
-//                            attron(COLOR_PAIR(1));
                             mvprintw(10, 10, "Jogo Terminou");
                             it = x->lObjects;
                             while (it != NULL) {
@@ -271,7 +280,7 @@ void* ReciveCurrentData(void *dados) {
                                 }
                                 it = it->p;
                             }
-                          //  sleep(5);
+                            //  sleep(5);
                             getch();
                             clear();
                             delwin(x->mainwin);
@@ -331,6 +340,40 @@ void* ReciveCurrentData(void *dados) {
     pthread_exit(0);
 }
 
+void* ReciveMessages(void *data) {
+    ThreadReferences *x = (ThreadReferences*) data;
+    char str[50];
+    int fd, i;
+    Message b;
+    Message sms[20];
+    int nSms = 0;
+
+    for (i = 0; i < 20; i++) {
+        sms[0].message = NULL;
+        sms[0].sender = NULL;
+    }
+
+    sprintf(str, "../JJJ%d", getpid());
+
+    fd = open(str, O_RDWR);
+    if (fd == -1) {
+        printf("<ERRO> Erro ao abrir o Ficheiro FIFO\n");
+        fflush(stdout);
+        pthread_exit(0);
+    }
+
+    while (*(x->Exit) == 0) {
+        i = read(fd, &b, sizeof (b));
+        if (i == sizeof (b)) {
+            AddMessage(nSms, sms, b);
+            nSms++;
+            ShowSMS(sms, nSms);
+        }
+    }
+
+    pthread_exit(0);
+}
+
 void Show(Object *ob) {
 
     int nplayer = 0;
@@ -368,7 +411,7 @@ void Show(Object *ob) {
                 mvprintw(it->y, it->x, "P");
                 nplayer++;
                 attron(COLOR_PAIR(9));
-                mvprintw(1 + nplayer, 40, "Jogador %d : %d", nplayer, it->playerInfo.score);
+                mvprintw(0 + nplayer, 60, "Jogador %d : %d", nplayer, it->playerInfo.score);
                 if (player == nplayer) {
                     mvprintw(20, 40, "Bombas %d  Mega Bombas %d", it->playerInfo.bombs, it->playerInfo.nMegaBombs);
                 }
@@ -405,16 +448,36 @@ void Show(Object *ob) {
             } else if (it->type == 12) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "X");
-            } else if(it->type == 13) {
+            } else if (it->type == 13) {
                 attron(COLOR_PAIR(18));
                 mvprintw(it->y, it->x, "P");
-            }  else if(it->type == 14) {
+            } else if (it->type == 14) {
                 attron(COLOR_PAIR(19));
                 mvprintw(it->y, it->x, "p");
-            } 
+            }
         }
         it = it->p;
     }
     refresh();
 
+}
+
+void AddMessage(int nSMS, Message *sms, Message nMessage) {
+    int i;
+
+    for (i = nSMS; i > 0; i--) {
+        if (i < 20)
+            sms[i] = sms[i + 1];
+    }
+    sms[0] = nMessage;
+}
+
+void ShowSMS(Message *sms, int nSMS) {
+    int i;
+
+    for (int i = nSMS - 1; i >= 0; nSMS--) {
+        if (sms[i].message != NULL) {
+            mvprintw(33, 5 + i, "Jogador %d: %s", sms[i].sender, sms[i].message);
+        }
+    }
 }
