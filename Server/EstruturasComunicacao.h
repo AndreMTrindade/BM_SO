@@ -40,7 +40,7 @@ typedef struct Object{
 }Object;
 
 typedef struct Message{
-    char message;
+    char message[50];
     int sender;
 } Message;
 

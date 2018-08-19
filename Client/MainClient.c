@@ -28,19 +28,24 @@ void CleanStdin(void);
 void AddMessage(int nSMS, Message *sms, Message nMessage);
 void ShowSMS(Message *sms, int nSMS);
 
+pthread_mutex_t Wrinting;
 int player;
 
 int main(int argc, char** argv) {
 
     Client c;
     char str[50];
-    int fd, fde;
+    int fd, fde, fdm;
     int Sair = 0;
     char tecla;
     char sms[50];
+    Message send;
     Object *ob;
     Play j;
-    
+
+    sprintf(str, "../MMM%d", getpid());
+    mkfifo(str, 0600);
+
     ThreadReferences *passadadosThread = (ThreadReferences*) malloc(sizeof (ThreadReferences));
     pthread_t envia;
 
@@ -53,6 +58,12 @@ int main(int argc, char** argv) {
 
     ob = ReciveInitialObjects();
 
+    
+    if (pthread_mutex_init(&Wrinting, NULL) != 0) {
+        printf("\n mutex lockFifoJogo has failed\n");
+        pthread_exit(0);
+    }
+    
     passadadosThread->Exit = &Sair;
     passadadosThread->lObjects = ob;
     passadadosThread->mainwin = mainwin;
@@ -73,10 +84,28 @@ int main(int argc, char** argv) {
     do {
         scanf("%c", &tecla);
         if (tecla == 'p' || tecla == 'P') {
+            pthread_mutex_lock(&Wrinting);
+            
+            //scanf("%s", sms);
+            init_pair(20, COLOR_WHITE, COLOR_BLACK);
             echo();
-            mvprintw(33, 26, "");
-            scanf("%s", sms);
-            noecho();
+            attron(COLOR_PAIR(20));
+            mvprintw(40, 26, "->");
+            refresh();
+            getstr(sms);
+            send.sender = player;
+            strcpy(send.message, sms);
+
+            fdm = open(FIFO_MESSAGES, O_WRONLY);
+            if (fdm == -1) {
+                printf("Erro ao Abrir FIFO \n");
+                fflush(stdout);
+            } else {
+
+                write(fdm, &send, sizeof (send));
+                close(fdm);
+            }
+            pthread_mutex_unlock(&Wrinting);
         } else {
             fde = open(FIFO_JOGO, O_WRONLY);
             if (fde == -1) {
@@ -334,7 +363,9 @@ void* ReciveCurrentData(void *data) {
                 temp->y = b.y;
                 temp->p = NULL;
             }
+             pthread_mutex_lock(&Wrinting);
             Show(x->lObjects);
+            pthread_mutex_unlock(&Wrinting);
         }
     }
     pthread_exit(0);
@@ -349,11 +380,10 @@ void* ReciveMessages(void *data) {
     int nSms = 0;
 
     for (i = 0; i < 20; i++) {
-        sms[0].message = NULL;
-        sms[0].sender = NULL;
+        sms[0].sender = -1;
     }
 
-    sprintf(str, "../JJJ%d", getpid());
+    sprintf(str, "../MMM%d", getpid());
 
     fd = open(str, O_RDWR);
     if (fd == -1) {
@@ -476,8 +506,9 @@ void ShowSMS(Message *sms, int nSMS) {
     int i;
 
     for (int i = nSMS - 1; i >= 0; nSMS--) {
-        if (sms[i].message != NULL) {
+        if (sms[i].sender != -1) {
             mvprintw(33, 5 + i, "Jogador %d: %s", sms[i].sender, sms[i].message);
         }
     }
+    refresh();
 }
